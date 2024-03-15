@@ -1,6 +1,7 @@
 use itertools::Itertools;
 use priority_queue::PriorityQueue; // Import itertools crate
 use std::collections::{HashSet, VecDeque, HashMap};
+use std::cmp::Reverse;
 
 const NUMBERS: usize = 3;
 const SWAPS: usize = 1;
@@ -95,7 +96,7 @@ fn main() {
     let permutations: Vec<Vec<usize>> = (1..=NUMBERS).permutations(NUMBERS).collect(); // Use itertools permutations
 
     // let mut queue = VecDeque::new();
-    let mut queue : PriorityQueue<Vec<Vec<usize>>, i32> = PriorityQueue::new();
+    let mut queue : PriorityQueue<Vec<Vec<usize>>, _> = PriorityQueue::new();
     let mut seen = HashSet::new();
     let mut visited = 0;
     let mut duplicate = 0;
@@ -117,16 +118,15 @@ fn main() {
 
     // queue.push_back(initial_state.clone());
     // queue.push(initial_state.clone(), 100-initial_state.len() as i32);
-    queue.push(initial_state.clone(), 0);
+    queue.push(initial_state.clone(), Reverse(0 as usize));
     // seen.insert(initial_state.clone()); // Insert vector instead of HashSet
-    program_length_map.insert(initial_state.clone(), 0);
 
     println!("Starting search");
 
-    let mut final_states = Vec::new();
+    // let mut final_states = Vec::new();
 
     // while let Some(state) = queue.pop_front() {
-    while let Some((state,_)) = queue.pop() {
+    while let Some((state,prog_len)) = queue.pop() {
         // if seen.contains(&state) {
         //     duplicate += 1;
         //     continue;
@@ -138,25 +138,29 @@ fn main() {
         // }
 
         visited += 1;
-        seen.insert(state.clone()); // Insert vector instead of HashSet
-
-        let prog_len = program_length_map.get(&state).unwrap();
-        if *prog_len > 20 {
-            continue
-        }
+        // seen.insert(state.clone()); 
 
         if visited % 1000 == 0 {
-            println!("Visited: {}, Duplicate: {}, Queue: {}, Final: {}", visited, duplicate, queue.len(), final_states.len());
-            println!("Current length: {}", prog_len);
+            // println!("Visited: {}, Duplicate: {}, Queue: {}, Final: {}", visited, duplicate, queue.len(), final_states.len());
+            println!("Visited: {}, Duplicate: {}, Queue: {}", visited, duplicate, queue.len());
+            println!("Current length: {}", prog_len.0);
         }
 
-        if state.len() == 1 {
-            // println!("Found: {:?}", state);
+        // all perm in state are 1..=NUMBERS in the first few registers
+        if state.iter().all(|p| p[0..NUMBERS] == initial_state[0][0..NUMBERS]) {
+            println!("Found: {:?} of length: {}", state, prog_len.0);
             // final_state = state;
-            // break;
-            final_states.push(state.clone());
-            continue;
+            break;
+            // final_states.push(state.clone());
+            // continue;
         }
+        // if state.len() == 1 {
+        //     println!("Found: {:?} of length: {}", state, prog_len.0);
+        //     // final_state = state;
+        //     break;
+        //     // final_states.push(state.clone());
+        //     // continue;
+        // }
 
         // all permutations are the same
         // if state.iter().all(|p| p[0..NUMBERS] == initial_state[0][0..NUMBERS]) {
@@ -174,25 +178,24 @@ fn main() {
                 duplicate += 1;
                 continue;
             }
+            seen.insert(new_state.clone());
+
             // TODO: need update if new shorter (possible ? we do dijkstra)
 
             // queue.push_back(new_state);
-            let len = new_state.len() as i32;
-            info.insert(new_state.clone(), (*cmd, state.clone()));
-            let new_len = program_length_map.get(&state).unwrap() + 1;
-            program_length_map.insert(new_state.clone(), new_len);
-            // queue.push(new_state, 100-len);
-            queue.push(new_state, 100-new_len as i32);
+            // let len = new_state.len() as i32;
+            // info.insert(new_state.clone(), (*cmd, state.clone()));
+            queue.push(new_state, Reverse(prog_len.0 + 1));
         }
     }
 
     println!("Visited: {}, Duplicate: {}", visited, duplicate);
 
-    for final_state in final_states {
-        let mut state = final_state;
-        let length = program_length_map.get(&state).unwrap();
-        println!("Program of length: {}", length);
-    }
+    // for final_state in final_states {
+    //     let mut state = final_state;
+    //     let length = program_length_map.get(&state).unwrap();
+    //     println!("Program of length: {}", length);
+    // }
 
     // if final_state.len() > 0 {
     //     let mut state = final_state;
