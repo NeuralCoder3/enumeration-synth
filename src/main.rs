@@ -5,7 +5,7 @@ use rayon::iter::ParallelIterator as _;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-const NUMBERS: usize = 3;
+const NUMBERS: usize = 4;
 const SWAPS: usize = 1;
 const REGS: usize = NUMBERS + SWAPS;
 const CMP: usize = 0;
