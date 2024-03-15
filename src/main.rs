@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use priority_queue::PriorityQueue; // Import itertools crate
-use std::collections::{HashSet, VecDeque, HashMap};
+use std::collections::{HashSet, HashMap};
 use std::cmp::Reverse;
 
 const NUMBERS: usize = 3;
@@ -10,6 +10,7 @@ const CMP: usize = 0;
 const MOV: usize = 1;
 const CMOVG: usize = 2;
 const CMOVL: usize = 3;
+const MAX_LENGTH: usize = 20;
 
 // Represents a command: (instruction, to, from)
 type Command = (usize, usize, usize);
@@ -97,13 +98,13 @@ fn main() {
 
     // let mut queue = VecDeque::new();
     let mut queue : PriorityQueue<Vec<Vec<usize>>, _> = PriorityQueue::new();
-    let mut seen = HashSet::new();
+    // let mut seen = HashSet::new();
     let mut visited = 0;
     let mut duplicate = 0;
     // index (visited) -> (operation, previous)
     // let mut info : HashMap<usize, (usize, usize)> = HashMap::new();
     // state -> (operation, previous)
-    let mut info : HashMap<Vec<Vec<usize>>, (Command, Vec<Vec<usize>>)> = HashMap::new();
+    // let mut info : HashMap<Vec<Vec<usize>>, (Command, Vec<Vec<usize>>)> = HashMap::new();
     let mut program_length_map : HashMap<Vec<Vec<usize>>, usize> = HashMap::new();
 
     let initial_state: Vec<Vec<usize>> = permutations
@@ -118,16 +119,18 @@ fn main() {
 
     // queue.push_back(initial_state.clone());
     // queue.push(initial_state.clone(), 100-initial_state.len() as i32);
-    queue.push(initial_state.clone(), Reverse(0 as usize));
+    queue.push(initial_state.clone(), Reverse((initial_state.len() as usize, 0 as usize)));
     // seen.insert(initial_state.clone()); // Insert vector instead of HashSet
+    program_length_map.insert(initial_state.clone(), 0);
 
     println!("Starting search");
 
     // let mut final_states = Vec::new();
     let goal_perm = initial_state[0][0..NUMBERS].to_vec();
+    let mut solution_lengths = Vec::new();
 
     // while let Some(state) = queue.pop_front() {
-    while let Some((state,prog_len)) = queue.pop() {
+    while let Some((state,Reverse((perm_count,prog_len)))) = queue.pop() {
         // if seen.contains(&state) {
         //     duplicate += 1;
         //     continue;
@@ -141,18 +144,20 @@ fn main() {
         visited += 1;
         // seen.insert(state.clone()); 
 
-        if visited % 1000 == 0 {
+        if visited % 10000 == 0 {
             // println!("Visited: {}, Duplicate: {}, Queue: {}, Final: {}", visited, duplicate, queue.len(), final_states.len());
             println!("Visited: {}, Duplicate: {}, Queue: {}", visited, duplicate, queue.len());
-            println!("Current length: {}", prog_len.0);
+            // println!("Current length: {}", prog_len);
+            println!("Perm count: {}", perm_count);
         }
 
         // all perm in state are 1..=NUMBERS in the first few registers
         // if state.iter().all(|p| p[0..NUMBERS] == initial_state[0][0..NUMBERS]) {
         if state.iter().all(|p| p[0..NUMBERS] == goal_perm) {
-            println!("Found: {:?} of length: {}", state, prog_len.0);
+            println!("Found: {:?} of length: {} (minimal: {:?})", state, prog_len, solution_lengths.iter().min());
+            solution_lengths.push(prog_len);
             // final_state = state;
-            break;
+            // break;
             // final_states.push(state.clone());
             // continue;
         }
@@ -163,6 +168,10 @@ fn main() {
         //     // final_states.push(state.clone());
         //     // continue;
         // }
+
+        if prog_len >= MAX_LENGTH {
+            continue;
+        }
 
         // all permutations are the same
         // if state.iter().all(|p| p[0..NUMBERS] == initial_state[0][0..NUMBERS]) {
@@ -176,18 +185,31 @@ fn main() {
             if !viable(&new_state) {
                 continue;
             }
-            if seen.contains(&new_state) {
+            if let Some(&length) = program_length_map.get(&new_state) {
                 duplicate += 1;
+                if length > prog_len + 1 {
+                    program_length_map.insert(new_state.clone(), prog_len + 1);
+                }
                 continue;
             }
-            seen.insert(new_state.clone());
+            program_length_map.insert(new_state.clone(), prog_len + 1);
+
+            let new_perm_count = new_state.len();
+
+            queue.push(new_state, Reverse((new_perm_count as usize, prog_len + 1)));
+
+            // if seen.contains(&new_state) {
+            //     duplicate += 1;
+            //     continue;
+            // }
+            // seen.insert(new_state.clone());
 
             // TODO: need update if new shorter (possible ? we do dijkstra)
 
             // queue.push_back(new_state);
             // let len = new_state.len() as i32;
             // info.insert(new_state.clone(), (*cmd, state.clone()));
-            queue.push(new_state, Reverse(prog_len.0 + 1));
+            // queue.push(new_state, Reverse(prog_len + 1));
         }
     }
 
