@@ -129,7 +129,6 @@ fn main() {
 
 
     let mut seen = HashSet::new();
-    let solution_lengths = Arc::new(Mutex::new(Vec::new()));
 
     let mut frontier: Vec<(Node,State)> = vec![(Node{cmd: (0,0,0), prev: None}, initial_state)];
     let start_time = std::time::Instant::now();
@@ -140,6 +139,22 @@ fn main() {
         println!("Length: {}", length);
         println!("Frontier: {}", frontier.len());
 
+        println!("Check solutions");
+
+        let solutions = 
+            frontier
+            .iter()
+            .filter(|(_,state)| state.iter().all(|p| p[0..NUMBERS] == goal_perm))
+            .collect::<Vec<_>>();
+        if solutions.len() > 0 {
+            println!("Found: {:?} of length: {}", solutions.len(), length);
+            let elapsed = start_time.elapsed();
+            println!("Elapsed: {:?}", elapsed);
+            break;
+        }
+
+        println!("Compute new frontier");
+
         let frontier_len = frontier.len();
         visited += frontier_len;
         let new_frontier =
@@ -147,30 +162,29 @@ fn main() {
             .into_par_iter()
             // .into_iter()
             .flat_map(|(prg,state)| {
-                if state.iter().all(|p| p[0..NUMBERS] == goal_perm) {
-                    println!("Found: {:?} of length: {}", state, length);
-                    let elapsed = start_time.elapsed();
-                    println!("Elapsed: {:?}", elapsed);
-                    solution_lengths.lock().unwrap().push(length);
-                    println!("a bit older: Visited: {}, Duplicate: {}", visited, duplicate);
+                // if state.iter().all(|p| p[0..NUMBERS] == goal_perm) {
+                //     println!("Found: {:?} of length: {}", state, length);
+                //     let elapsed = start_time.elapsed();
+                //     println!("Elapsed: {:?}", elapsed);
+                //     // solution_lengths.lock().unwrap().push(length);
+                //     println!("a bit older: Visited: {}, Duplicate: {}", visited, duplicate);
 
-                    // reconstruct program
-                    let mut prg = prg;
-                    let mut cmds = vec![];
-                    while let Some(node) = prg.prev {
-                        cmds.push(prg.cmd);
-                        prg = *node;
-                    }
-                    cmds.reverse();
-                    println!("Program:");
-                    for cmd in cmds {
-                        println!("{}", show_command(&cmd));
-                    }
+                //     // reconstruct program
+                //     let mut prg = prg;
+                //     let mut cmds = vec![];
+                //     while let Some(node) = prg.prev {
+                //         cmds.push(prg.cmd);
+                //         prg = *node;
+                //     }
+                //     cmds.reverse();
+                //     println!("Program:");
+                //     for cmd in cmds {
+                //         println!("{}", show_command(&cmd));
+                //     }
 
-                    std::process::exit(0);
-                }
+                //     std::process::exit(0);
+                // }
 
-                // let prev_box = Box::new(prg);
                 let prev_box = Some(Box::new(prg));
 
                 possible_cmds
@@ -192,17 +206,17 @@ fn main() {
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
-        // let new_frontier_length = new_frontier.len();
 
         println!("Filter out duplicates");
         let frontier_filtered = new_frontier
             // filter seen (as seen is not updated sequentially, we dedup manually)
             .into_iter()
             .filter(|(_,state)| {
+                // return !seen.contains(state);
                 if seen.contains(state) {
-                    duplicate += 1;
                     return false;
                 }
+                // important for runtime
                 seen.insert(state.clone());
                 true
             })
@@ -212,10 +226,10 @@ fn main() {
 
         // add all to seen
         seen.extend(frontier_filtered.iter().map(|(_,state)| state.clone()));
-        if solution_lengths.lock().unwrap().len() > 0 {
-            println!("Found: {:?} of length: {}", solution_lengths.lock().unwrap(), length);
-            break;
-        }
+        // if solution_lengths.lock().unwrap().len() > 0 {
+        //     println!("Found: {:?} of length: {}", solution_lengths.lock().unwrap(), length);
+        //     break;
+        // }
         length += 1;
         frontier = frontier_filtered;
     }
