@@ -1,28 +1,26 @@
-// use atomic_counter::RelaxedCounter;
-// use itertools::Either;
+use atomic_counter::RelaxedCounter;
 use itertools::Itertools;
+// use priority_queue::PriorityQueue; // Import itertools crate
 use std::collections::{HashSet, VecDeque, HashMap};
+// use std::cmp::Reverse;
 use rayon::iter::IntoParallelIterator as _;
 use rayon::iter::ParallelIterator as _;
-// use dynqueue::IntoDynQueue as _;
-// use atomic_counter::AtomicCounter;
+use dynqueue::IntoDynQueue as _;
+use atomic_counter::AtomicCounter;
 use std::sync::Arc;
 use std::sync::Mutex;
-// use std::thread;
+use std::thread;
 
-const NUMBERS: usize = 4;
+const NUMBERS: usize = 3;
 const SWAPS: usize = 1;
 const REGS: usize = NUMBERS + SWAPS;
 const CMP: usize = 0;
 const MOV: usize = 1;
 const CMOVG: usize = 2;
 const CMOVL: usize = 3;
-const NUMBERS_U8: u8 = NUMBERS as u8;
 
 // Represents a command: (instruction, to, from)
 type Command = (usize, usize, usize);
-type Permutation = Vec<u8>;
-type State = Vec<Permutation>;
 
 fn possible_commands() -> Vec<Command> {
     let mut commands = vec![];
@@ -41,12 +39,12 @@ fn possible_commands() -> Vec<Command> {
     commands
 }
 
-fn apply(cmd: &Command, perm: &mut Permutation) {
+fn apply(cmd: &Command, perm: &mut [usize]) {
     let (instr, to, from) = *cmd;
     match instr {
         CMP => {
-            perm[REGS + 0] = (perm[to] < perm[from]) as u8;
-            perm[REGS + 1] = (perm[to] > perm[from]) as u8;
+            perm[REGS + 0] = (perm[to] < perm[from]) as usize;
+            perm[REGS + 1] = (perm[to] > perm[from]) as usize;
         }
         MOV => perm[to] = perm[from],
         CMOVG => {
@@ -63,7 +61,7 @@ fn apply(cmd: &Command, perm: &mut Permutation) {
     }
 }
 
-fn apply_all(cmd: &Command, state: &State) -> State {
+fn apply_all(cmd: &Command, state: &[Vec<usize>]) -> Vec<Vec<usize>> {
     let mut new_state = Vec::new();
     // let mut new_state = HashSet::new();
     for perm in state {
@@ -79,9 +77,9 @@ fn apply_all(cmd: &Command, state: &State) -> State {
     new_state
 }
 
-fn viable(state: &State) -> bool {
+fn viable(state: &[Vec<usize>]) -> bool {
     for perm in state {
-        for n in 1..=NUMBERS_U8 {
+        for n in 1..=NUMBERS {
             if !perm[0..REGS].contains(&n) {
                 return false;
             }
@@ -103,15 +101,13 @@ fn show_command(cmd: &Command) -> String {
 
 fn main() {
     let possible_cmds = possible_commands();
-    let permutations: Vec<Vec<u8>> = (1..=NUMBERS_U8).permutations(NUMBERS).collect(); // Use itertools permutations
+    let permutations: Vec<Vec<usize>> = (1..=NUMBERS).permutations(NUMBERS).collect(); // Use itertools permutations
 
     // let mut queue = VecDeque::new();
     // let mut queue : VecDeque<_> = VecDeque::new();
     // let mut seen = HashSet::new();
-    // let visited = RelaxedCounter::new(0 as usize);
-    // let duplicate = RelaxedCounter::new(0 as usize);
-    let mut visited = 0;
-    let mut duplicate = 0;
+    let visited = RelaxedCounter::new(0 as usize);
+    let duplicate = RelaxedCounter::new(0 as usize);
 
     // index (visited) -> (operation, previous)
     // let mut info : HashMap<usize, (usize, usize)> = HashMap::new();
@@ -119,7 +115,7 @@ fn main() {
     // let mut info : HashMap<Vec<Vec<usize>>, (Command, Vec<Vec<usize>>)> = HashMap::new();
     // let mut program_length_map : HashMap<Vec<Vec<usize>>, usize> = HashMap::new();
 
-    let initial_state: State = permutations
+    let initial_state: Vec<Vec<usize>> = permutations
         .iter()
         .map(|p| {
             let mut perm = p.clone();
@@ -145,34 +141,24 @@ fn main() {
     // let seen = Arc::new(Mutex::new(HashSet::new()));
     let solution_lengths = Arc::new(Mutex::new(Vec::new()));
 
-    let mut frontier: Vec<State> = vec![initial_state.clone()];
-    let start_time = std::time::Instant::now();
+    let mut frontier: Vec<Vec<Vec<usize>>> = vec![initial_state.clone()];
 
     let mut length = 0;
     while length<20 {
-
-        println!("Length: {}", length);
-        println!("Frontier: {}", frontier.len());
-
-        visited += frontier.len();
+        
         let new_frontier =
             frontier
-            .into_par_iter()
-            // .into_iter()
+            // .into_par_iter()
+            .into_iter()
             .flat_map(|state| {
-                // visited.inc();
-                // if visited.get() % 1000 == 0 {
-                //     println!("Visited: {}, Duplicate: {} (length: {})", visited.get(), duplicate.get(), length);
-                // }
+                visited.inc();
+                if visited.get() % 1000 == 0 {
+                    println!("Visited: {}, Duplicate: {} (length: {})", visited.get(), duplicate.get(), length);
+                }
                 if state.iter().all(|p| p[0..NUMBERS] == goal_perm) {
                     println!("Found: {:?} of length: {}", state, length);
-                    let elapsed = start_time.elapsed();
-                    println!("Elapsed: {:?}", elapsed);
                     solution_lengths.lock().unwrap().push(length);
-                    // exit program
-                    println!("a bit older: Visited: {}, Duplicate: {}", visited, duplicate);
-                    std::process::exit(0);
-                    // return vec![state];
+                    return vec![state];
                 }
 
                 possible_cmds
@@ -188,41 +174,61 @@ fn main() {
                         //     return None;
                         // }
                         // seen.lock().unwrap().insert(new_state.clone());
-
-                        if seen.contains(&new_state) {
-                        //     duplicate += 1;
-                            return None;
-                        }
-
                         Some(new_state)
                     })
                     .collect::<Vec<_>>()
             })
-            .collect::<Vec<_>>();
-        let new_frontier_length = new_frontier.len();
-        // visited += new_frontier_length;
-
-        println!("Filter out duplicates");
-        let frontier_filtered = new_frontier
+            .collect::<Vec<_>>()
             // filter seen
             .into_iter()
             .unique()
-            // .filter(|state| { return !seen.contains(state); })
+            .filter(|state| {
+                if seen.contains(state) {
+                    duplicate.inc();
+                    return false;
+                }
+                // seen.insert(state.clone());
+                true
+            })
             .collect::<Vec<_>>();
-        duplicate += new_frontier_length - frontier_filtered.len();
-        println!("Visited: {}, Duplicate: {} (length: {})", visited, duplicate, length);
-
         // add all to seen
-        seen.extend(frontier_filtered.iter().cloned());
+        seen.extend(new_frontier.iter().cloned());
         if solution_lengths.lock().unwrap().len() > 0 {
             println!("Found: {:?} of length: {}", solution_lengths.lock().unwrap(), length);
             break;
         }
+
+        // let mut new_frontier = Vec::new();
+        // for state in frontier {
+        //     visited.inc();
+        //     if visited.get() % 1000 == 0 {
+        //         println!("Visited: {}, Duplicate: {} (length: {})", visited.get(), duplicate.get(), length);
+        //     }
+        //     if state.iter().all(|p| p[0..NUMBERS] == goal_perm) {
+        //         println!("Found: {:?} of length: {}", state, length);
+        //         break 'outer;
+        //     }
+
+        //     for cmd in &possible_cmds {
+        //         let new_state = apply_all(cmd, &state);
+
+        //         if !viable(&new_state) {
+        //             continue;
+        //         }
+        //         if seen.contains(&new_state, &guard) {
+        //             duplicate.inc();
+        //             continue;
+        //         }
+        //         seen.insert(new_state.clone(), &guard);
+
+        //         new_frontier.push(new_state);
+        //     }
+        // }
         length += 1;
-        frontier = frontier_filtered;
+        frontier = new_frontier;
     }
 
-    println!("Visited: {}, Duplicate: {}", visited, duplicate);
+    println!("Visited: {}, Duplicate: {}", visited.get(), duplicate.get());
 
     // vec![(initial_state.clone(),0)]
     // .into_dyn_queue()
