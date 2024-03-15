@@ -96,6 +96,9 @@ fn show_command(cmd: &Command) -> String {
 }
 
 // linked list to store the commands and pointer to last element
+// TODO: https://rust-unofficial.github.io/too-many-lists/
+// https://rust-unofficial.github.io/too-many-lists/second-option.html
+// for how to correctly implement a linked list stack
 #[derive(Clone)]
 struct Node {
     cmd: Command,
