@@ -110,7 +110,7 @@ fn main() {
     let possible_cmds = possible_commands();
     let permutations: Vec<Vec<u8>> = (1..=NUMBERS_U8).permutations(NUMBERS).collect(); 
     // only take 10 random permutations
-    let permutations = permutations.choose_multiple(&mut rand::thread_rng(), 10);
+    let permutations = permutations.choose_multiple(&mut rand::thread_rng(), 10).cloned().collect::<Vec<_>>();
     // let permutations = permutations.into_iter().take(10).collect::<Vec<_>>();
 
     let mut visited = 0;
