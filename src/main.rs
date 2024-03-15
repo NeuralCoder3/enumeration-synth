@@ -10,7 +10,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 // use std::thread;
 
-const NUMBERS: usize = 4;
+const NUMBERS: usize = 3;
 const SWAPS: usize = 1;
 const REGS: usize = NUMBERS + SWAPS;
 const CMP: usize = 0;
