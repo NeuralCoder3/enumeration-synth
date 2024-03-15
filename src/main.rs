@@ -5,7 +5,7 @@ use rayon::iter::ParallelIterator as _;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-const NUMBERS: usize = 4;
+const NUMBERS: usize = 3;
 const SWAPS: usize = 1;
 const REGS: usize = NUMBERS + SWAPS;
 const CMP: usize = 0;
@@ -24,7 +24,9 @@ fn possible_commands() -> Vec<Command> {
     for instr in &[MOV, CMOVG, CMOVL] {
         for to in 0..REGS {
             for from in 0..REGS {
-                commands.push((*instr, to, from));
+                if to != from {
+                    commands.push((*instr, to, from));
+                }
             }
         }
     }
@@ -138,7 +140,8 @@ fn main() {
         println!("Length: {}", length);
         println!("Frontier: {}", frontier.len());
 
-        visited += frontier.len();
+        let frontier_len = frontier.len();
+        visited += frontier_len;
         let new_frontier =
             frontier
             .into_par_iter()
@@ -189,7 +192,7 @@ fn main() {
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
-        let new_frontier_length = new_frontier.len();
+        // let new_frontier_length = new_frontier.len();
 
         println!("Filter out duplicates");
         let frontier_filtered = new_frontier
@@ -204,7 +207,7 @@ fn main() {
                 true
             })
             .collect::<Vec<_>>();
-        duplicate += new_frontier_length - frontier_filtered.len();
+        duplicate += frontier_len * possible_cmds.len() - frontier_filtered.len();
         println!("Visited: {}, Duplicate: {} (length: {})", visited, duplicate, length);
 
         // add all to seen
