@@ -83,6 +83,9 @@ fn viable(state: &State) -> bool {
 
 fn show_command(cmd: &Command) -> String {
     let (instr, to, from) = *cmd;
+    // 1-indexed to stay consistent with minizinc
+    let to = to+1;
+    let from = from+1;
     match instr {
         CMP => format!("CMP {} {}", to, from),
         MOV => format!("MOV {} {}", to, from),
@@ -90,6 +93,13 @@ fn show_command(cmd: &Command) -> String {
         CMOVL => format!("CMOVL {} {}", to, from),
         _ => panic!("Unknown instruction"),
     }
+}
+
+// linked list to store the commands and pointer to last element
+#[derive(Clone)]
+struct Node {
+    cmd: Command,
+    prev: Option<Box<Node>>,
 }
 
 fn main() {
@@ -116,7 +126,7 @@ fn main() {
     let mut seen = HashSet::new();
     let solution_lengths = Arc::new(Mutex::new(Vec::new()));
 
-    let mut frontier: Vec<State> = vec![initial_state.clone()];
+    let mut frontier: Vec<(Node,State)> = vec![(Node{cmd: (0,0,0), prev: None}, initial_state)];
     let start_time = std::time::Instant::now();
 
     let mut length = 0;
@@ -130,15 +140,32 @@ fn main() {
             frontier
             .into_par_iter()
             // .into_iter()
-            .flat_map(|state| {
+            .flat_map(|(prg,state)| {
                 if state.iter().all(|p| p[0..NUMBERS] == goal_perm) {
                     println!("Found: {:?} of length: {}", state, length);
                     let elapsed = start_time.elapsed();
                     println!("Elapsed: {:?}", elapsed);
                     solution_lengths.lock().unwrap().push(length);
                     println!("a bit older: Visited: {}, Duplicate: {}", visited, duplicate);
+
+                    // reconstruct program
+                    let mut prg = prg;
+                    let mut cmds = vec![];
+                    while let Some(node) = prg.prev {
+                        cmds.push(prg.cmd);
+                        prg = *node;
+                    }
+                    cmds.reverse();
+                    println!("Program:");
+                    for cmd in cmds {
+                        println!("{}", show_command(&cmd));
+                    }
+
                     std::process::exit(0);
                 }
+
+                // let prev_box = Box::new(prg);
+                let prev_box = Some(Box::new(prg));
 
                 possible_cmds
                     .iter()
@@ -153,7 +180,8 @@ fn main() {
                             return None;
                         }
 
-                        Some(new_state)
+                        let prg = Node{cmd: *cmd, prev: prev_box.clone()};
+                        Some((prg,new_state))
                     })
                     .collect::<Vec<_>>()
             })
@@ -164,13 +192,20 @@ fn main() {
         let frontier_filtered = new_frontier
             // filter seen (as seen is not updated sequentially, we dedup manually)
             .into_iter()
-            .unique()
+            .filter(|(_,state)| {
+                if seen.contains(state) {
+                    duplicate += 1;
+                    return false;
+                }
+                seen.insert(state.clone());
+                true
+            })
             .collect::<Vec<_>>();
         duplicate += new_frontier_length - frontier_filtered.len();
         println!("Visited: {}, Duplicate: {} (length: {})", visited, duplicate, length);
 
         // add all to seen
-        seen.extend(frontier_filtered.iter().cloned());
+        seen.extend(frontier_filtered.iter().map(|(_,state)| state.clone()));
         if solution_lengths.lock().unwrap().len() > 0 {
             println!("Found: {:?} of length: {}", solution_lengths.lock().unwrap(), length);
             break;
