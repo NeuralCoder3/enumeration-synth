@@ -1,5 +1,7 @@
 use itertools::Itertools;
-use std::collections::{HashSet, VecDeque, HashMap};
+use priority_queue::PriorityQueue; // Import itertools crate
+use std::collections::{HashSet, HashMap};
+use std::cmp::Reverse;
 
 const NUMBERS: usize = 3;
 const SWAPS: usize = 1;
@@ -8,12 +10,10 @@ const CMP: usize = 0;
 const MOV: usize = 1;
 const CMOVG: usize = 2;
 const CMOVL: usize = 3;
-const NUMBERS_U8: u8 = NUMBERS as u8;
+const MAX_LENGTH: usize = 20;
 
 // Represents a command: (instruction, to, from)
 type Command = (usize, usize, usize);
-type Permutation = Vec<u8>;
-type State = Vec<Permutation>;
 
 fn possible_commands() -> Vec<Command> {
     let mut commands = vec![];
@@ -32,12 +32,12 @@ fn possible_commands() -> Vec<Command> {
     commands
 }
 
-fn apply(cmd: &Command, perm: &mut [u8]) {
+fn apply(cmd: &Command, perm: &mut [usize]) {
     let (instr, to, from) = *cmd;
     match instr {
         CMP => {
-            perm[REGS + 0] = (perm[to] < perm[from]) as u8;
-            perm[REGS + 1] = (perm[to] > perm[from]) as u8;
+            perm[REGS + 0] = (perm[to] < perm[from]) as usize;
+            perm[REGS + 1] = (perm[to] > perm[from]) as usize;
         }
         MOV => perm[to] = perm[from],
         CMOVG => {
@@ -54,7 +54,7 @@ fn apply(cmd: &Command, perm: &mut [u8]) {
     }
 }
 
-fn apply_all(cmd: &Command, state: &[Vec<u8>]) -> Vec<Vec<u8>> {
+fn apply_all(cmd: &Command, state: &[Vec<usize>]) -> Vec<Vec<usize>> {
     let mut new_state = Vec::new();
     // let mut new_state = HashSet::new();
     for perm in state {
@@ -70,9 +70,9 @@ fn apply_all(cmd: &Command, state: &[Vec<u8>]) -> Vec<Vec<u8>> {
     new_state
 }
 
-fn viable(state: &[Vec<u8>]) -> bool {
+fn viable(state: &[Vec<usize>]) -> bool {
     for perm in state {
-        for n in 1..=(NUMBERS_U8) {
+        for n in 1..=NUMBERS {
             if !perm[0..REGS].contains(&n) {
                 return false;
             }
@@ -92,93 +92,45 @@ fn show_command(cmd: &Command) -> String {
     }
 }
 
-
-// hash a permutation into a 64-bit number
-// 2 bit per register ((3+1)*2) + 1 bit per flag (2) 
-fn perm_hash(perm: &Permutation) -> u16 {
-    let mut hash = 0;
-    for i in 0..REGS {
-        hash |= (perm[i] as u16) << (i * 2);
-    }
-    hash |= (perm[REGS] as u16) << (REGS * 2);
-    hash |= (perm[REGS + 1] as u16) << (REGS * 2 + 1);
-    hash
-}
-
-// at most 6 permutations => 60 bits
-// concat all permutation hash
-fn state_hash(state: &State) -> u64 {
-    let mut hash = 0;
-    for perm in state {
-        hash = (hash << 10) | perm_hash(perm) as u64;
-    }
-    hash
-}
-
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct StateStruct {
-    state: State,
-}
-
-impl std::hash::Hash for StateStruct {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        state.write_u64(state_hash(&self.state));
-    }
-}
-
-// struct StateHasher;
-
-// impl std::hash::BuildHasher for StateHasher {
-//     type Hasher = StateStruct;
-//     fn build_hasher(&self) -> StateStruct {
-//         StateStruct { state: 0 }
-//     }
-// }
-
-
 fn main() {
     let possible_cmds = possible_commands();
-    let permutations: Vec<Vec<u8>> = (1..=(NUMBERS_U8)).permutations(NUMBERS).collect(); // Use itertools permutations
+    let permutations: Vec<Vec<usize>> = (1..=NUMBERS).permutations(NUMBERS).collect(); // Use itertools permutations
 
-    let mut queue = VecDeque::new();
-    // let mut queue : PriorityQueue<Vec<Vec<usize>>, _> = PriorityQueue::new();
+    // let mut queue = VecDeque::new();
+    let mut queue : PriorityQueue<Vec<Vec<usize>>, _> = PriorityQueue::new();
     // let mut seen = HashSet::new();
-    // overload hashset to use state_hash
-    // let mut seen = HashSet::new();
-    let mut seen = HashSet::new();
     let mut visited = 0;
     let mut duplicate = 0;
     // index (visited) -> (operation, previous)
     // let mut info : HashMap<usize, (usize, usize)> = HashMap::new();
     // state -> (operation, previous)
     // let mut info : HashMap<Vec<Vec<usize>>, (Command, Vec<Vec<usize>>)> = HashMap::new();
-    // let mut program_length_map : HashMap<Vec<Vec<usize>>, usize> = HashMap::new();
+    let mut program_length_map : HashMap<Vec<Vec<usize>>, usize> = HashMap::new();
 
-    let initial_state: State = permutations
+    let initial_state: Vec<Vec<usize>> = permutations
         .iter()
         .map(|p| {
-            let mut perm : Permutation = p.clone();
-            perm.extend(&[0 as u8; SWAPS]);
-            perm.extend(&[0 as u8, 0 as u8]); // Flags
+            let mut perm = p.clone();
+            perm.extend(&[0; SWAPS]);
+            perm.extend(&[0, 0]); // Flags
             perm
         })
         .collect();
 
-    queue.push_back((initial_state.clone(), 0));
+    // queue.push_back(initial_state.clone());
     // queue.push(initial_state.clone(), 100-initial_state.len() as i32);
-    // queue.push(initial_state.clone(), Reverse(0 as usize));
+    queue.push(initial_state.clone(), Reverse((initial_state.len() as usize, 0 as usize)));
     // seen.insert(initial_state.clone()); // Insert vector instead of HashSet
+    program_length_map.insert(initial_state.clone(), 0);
 
     println!("Starting search");
 
     // let mut final_states = Vec::new();
     let goal_perm = initial_state[0][0..NUMBERS].to_vec();
-
-    let start_time = std::time::Instant::now();
+    let mut solution_lengths = Vec::new();
 
     // while let Some(state) = queue.pop_front() {
-    while let Some((state,prog_len)) = queue.pop_front() {
+    while let Some((state,Reverse((perm_count,prog_len)))) = queue.pop() {
         // if seen.contains(&state) {
         //     duplicate += 1;
         //     continue;
@@ -192,20 +144,20 @@ fn main() {
         visited += 1;
         // seen.insert(state.clone()); 
 
-        if visited % 1000 == 0 {
+        if visited % 10000 == 0 {
             // println!("Visited: {}, Duplicate: {}, Queue: {}, Final: {}", visited, duplicate, queue.len(), final_states.len());
             println!("Visited: {}, Duplicate: {}, Queue: {}", visited, duplicate, queue.len());
-            println!("Current length: {}", prog_len);
+            // println!("Current length: {}", prog_len);
+            println!("Perm count: {}", perm_count);
         }
 
         // all perm in state are 1..=NUMBERS in the first few registers
         // if state.iter().all(|p| p[0..NUMBERS] == initial_state[0][0..NUMBERS]) {
         if state.iter().all(|p| p[0..NUMBERS] == goal_perm) {
-            println!("Found: {:?} of length: {}", state, prog_len);
-            let elapsed = start_time.elapsed();
-            println!("Elapsed: {:?}", elapsed);
+            println!("Found: {:?} of length: {} (minimal: {:?})", state, prog_len, solution_lengths.iter().min());
+            solution_lengths.push(prog_len);
             // final_state = state;
-            break;
+            // break;
             // final_states.push(state.clone());
             // continue;
         }
@@ -216,6 +168,10 @@ fn main() {
         //     // final_states.push(state.clone());
         //     // continue;
         // }
+
+        if prog_len >= MAX_LENGTH {
+            continue;
+        }
 
         // all permutations are the same
         // if state.iter().all(|p| p[0..NUMBERS] == initial_state[0][0..NUMBERS]) {
@@ -229,30 +185,31 @@ fn main() {
             if !viable(&new_state) {
                 continue;
             }
+            if let Some(&length) = program_length_map.get(&new_state) {
+                duplicate += 1;
+                if length > prog_len + 1 {
+                    program_length_map.insert(new_state.clone(), prog_len + 1);
+                }
+                continue;
+            }
+            program_length_map.insert(new_state.clone(), prog_len + 1);
+
+            let new_perm_count = new_state.len();
+
+            queue.push(new_state, Reverse((new_perm_count as usize, prog_len + 1)));
+
             // if seen.contains(&new_state) {
             //     duplicate += 1;
             //     continue;
             // }
             // seen.insert(new_state.clone());
-            let state_hash = state_hash(&new_state);
-            if seen.contains(&state_hash) {
-                duplicate += 1;
-                continue;
-            }
-            seen.insert(state_hash);
-            // let state_struct = StateStruct { state: new_state.clone() };
-            // if seen.contains(&state_struct) {
-            //     duplicate += 1;
-            //     continue;
-            // }
-            // seen.insert(state_struct);
 
             // TODO: need update if new shorter (possible ? we do dijkstra)
 
             // queue.push_back(new_state);
             // let len = new_state.len() as i32;
             // info.insert(new_state.clone(), (*cmd, state.clone()));
-            queue.push_back((new_state, prog_len + 1));
+            // queue.push(new_state, Reverse(prog_len + 1));
         }
     }
 
