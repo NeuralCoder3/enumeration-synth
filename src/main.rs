@@ -124,6 +124,7 @@ fn main() {
     println!("Starting search");
 
     // let mut final_states = Vec::new();
+    let goal_perm = initial_state[0][0..NUMBERS].to_vec();
 
     // while let Some(state) = queue.pop_front() {
     while let Some((state,prog_len)) = queue.pop() {
@@ -147,7 +148,8 @@ fn main() {
         }
 
         // all perm in state are 1..=NUMBERS in the first few registers
-        if state.iter().all(|p| p[0..NUMBERS] == initial_state[0][0..NUMBERS]) {
+        // if state.iter().all(|p| p[0..NUMBERS] == initial_state[0][0..NUMBERS]) {
+        if state.iter().all(|p| p[0..NUMBERS] == goal_perm) {
             println!("Found: {:?} of length: {}", state, prog_len.0);
             // final_state = state;
             break;
