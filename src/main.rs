@@ -2,10 +2,9 @@ use itertools::Itertools;
 use std::collections::HashSet;
 use rayon::iter::IntoParallelIterator as _;
 use rayon::iter::ParallelIterator as _;
-use std::sync::Arc;
-use std::sync::Mutex;
+use rand::seq::SliceRandom;
 
-const NUMBERS: usize = 3;
+const NUMBERS: usize = 4;
 const SWAPS: usize = 1;
 const REGS: usize = NUMBERS + SWAPS;
 const CMP: usize = 0;
@@ -110,6 +109,9 @@ struct Node {
 fn main() {
     let possible_cmds = possible_commands();
     let permutations: Vec<Vec<u8>> = (1..=NUMBERS_U8).permutations(NUMBERS).collect(); 
+    // only take 10 random permutations
+    let permutations = permutations.choose_multiple(&mut rand::thread_rng(), 10);
+    // let permutations = permutations.into_iter().take(10).collect::<Vec<_>>();
 
     let mut visited = 0;
     let mut duplicate = 0;
