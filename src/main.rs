@@ -4,7 +4,7 @@ use rayon::iter::IntoParallelIterator as _;
 use rayon::iter::ParallelIterator as _;
 use rand::seq::SliceRandom;
 
-const NUMBERS: usize = 4;
+const NUMBERS: usize = 3;
 const SWAPS: usize = 1;
 const REGS: usize = NUMBERS + SWAPS;
 const CMP: usize = 0;
@@ -106,11 +106,26 @@ struct Node {
     prev: Option<Box<Node>>,
 }
 
+// permutation -> positions of 1, ..., Number
+// e.g. [0,2,1,1] -> [[2,3],[1],[]]
+// representation modulo renaming
+fn positions(perm: &Permutation) -> Vec<Vec<u8>> {
+    let mut pos = vec![vec![]; NUMBERS];
+    for (i, &n) in perm.iter().enumerate() {
+        if n > 0 {
+            pos[(n - 1) as usize].push(i as u8);
+        }
+    }
+    // sort result to get rid of naming association
+    pos.sort();
+    pos
+}
+
 fn main() {
     let possible_cmds = possible_commands();
     let permutations: Vec<Vec<u8>> = (1..=NUMBERS_U8).permutations(NUMBERS).collect(); 
     // only take 10 random permutations
-    let permutations = permutations.choose_multiple(&mut rand::thread_rng(), 10).cloned().collect::<Vec<_>>();
+    // let permutations = permutations.choose_multiple(&mut rand::thread_rng(), 10).cloned().collect::<Vec<_>>();
     // let permutations = permutations.into_iter().take(10).collect::<Vec<_>>();
 
     let mut visited = 0;
@@ -127,7 +142,7 @@ fn main() {
         .collect();
 
     println!("Starting search");
-    let goal_perm = initial_state[0][0..NUMBERS].to_vec();
+    // let goal_perm = initial_state[0][0..NUMBERS].to_vec();
 
 
     let mut seen = HashSet::new();
@@ -146,7 +161,8 @@ fn main() {
         let solutions = 
             frontier
             .iter()
-            .filter(|(_,state)| state.iter().all(|p| p[0..NUMBERS] == goal_perm))
+            // .filter(|(_,state)| state.iter().all(|p| p[0..NUMBERS] == goal_perm))
+            .filter(|(_,state)| state.iter().all(|p| p[0..NUMBERS] == state[0][0..NUMBERS]))
             .collect::<Vec<_>>();
         if solutions.len() > 0 {
             println!("Found: {:?} of length: {}", solutions.len(), length);
@@ -198,12 +214,17 @@ fn main() {
                             return None;
                         }
 
-                        if seen.contains(&new_state) {
+                        let eq_repr = new_state.iter().map(|p| positions(p)).collect::<Vec<_>>();
+                        if seen.contains(&eq_repr) {
                             return None;
                         }
+                        // if seen.contains(&new_state) {
+                        //     return None;
+                        // }
 
                         let prg = Node{cmd: *cmd, prev: prev_box.clone()};
-                        Some((prg,new_state))
+                        // Some((prg,new_state))
+                        Some((prg,eq_repr,new_state))
                     })
                     .collect::<Vec<_>>()
             })
@@ -213,13 +234,17 @@ fn main() {
         let frontier_filtered = new_frontier
             // filter seen (as seen is not updated sequentially, we dedup manually)
             .into_iter()
-            .filter(|(_,state)| {
+            .filter(|(_,eq_repr,_)| {
                 // return !seen.contains(state);
-                if seen.contains(state) {
+                // if seen.contains(state) {
+                //     return false;
+                // }
+                // important for runtime
+                // seen.insert(state.clone());
+                if seen.contains(eq_repr) {
                     return false;
                 }
-                // important for runtime
-                seen.insert(state.clone());
+                seen.insert(eq_repr.clone());
                 true
             })
             .collect::<Vec<_>>();
@@ -227,13 +252,13 @@ fn main() {
         println!("Visited: {}, Duplicate: {} (length: {})", visited, duplicate, length);
 
         // add all to seen
-        seen.extend(frontier_filtered.iter().map(|(_,state)| state.clone()));
+        // seen.extend(frontier_filtered.iter().map(|(_,eq_repr,_)| eq_repr.clone()));
         // if solution_lengths.lock().unwrap().len() > 0 {
         //     println!("Found: {:?} of length: {}", solution_lengths.lock().unwrap(), length);
         //     break;
         // }
         length += 1;
-        frontier = frontier_filtered;
+        frontier = frontier_filtered.into_iter().map(|(len,_,state)| (len,state)).collect();
     }
 
     println!("Visited: {}, Duplicate: {}", visited, duplicate);
