@@ -106,19 +106,38 @@ struct Node {
     prev: Option<Box<Node>>,
 }
 
+#[derive(Clone, Eq, PartialEq, Hash)]
+struct PermInfo 
+{
+    perm: Vec<Vec<u8>>,
+    flags: Vec<bool>,
+}
+
 // permutation -> positions of 1, ..., Number
 // e.g. [0,2,1,1] -> [[2,3],[1],[]]
 // representation modulo renaming
-fn positions(perm: &Permutation) -> Vec<Vec<u8>> {
+fn perm_positions(perm: &Permutation) -> PermInfo {
     let mut pos = vec![vec![]; NUMBERS];
-    for (i, &n) in perm.iter().enumerate() {
+    for (i, &n) in perm[0..REGS].iter().enumerate() {
         if n > 0 {
             pos[(n - 1) as usize].push(i as u8);
         }
     }
-    // sort result to get rid of naming association
+    // for (i, &n) in perm.iter().enumerate() {
+    //     if n > 0 {
+    //         pos[(n - 1) as usize].push(i as u8);
+    //     }
+    // }
+    // // sort result to get rid of naming association
+
     pos.sort();
-    pos
+    let flags = perm[REGS..].iter().map(|&x| x == 1).collect();
+    PermInfo{perm: pos, flags}
+}
+
+fn state_positions(state: &State) -> Vec<PermInfo> {
+    // state.iter().map(|p| perm_positions(p)).sorted().collect()
+    state.iter().map(|p| perm_positions(p)).collect()
 }
 
 fn main() {
@@ -214,7 +233,8 @@ fn main() {
                             return None;
                         }
 
-                        let eq_repr = new_state.iter().map(|p| positions(p)).collect::<Vec<_>>();
+                        // let eq_repr = new_state.iter().map(|p| perm_positions(p)).collect::<Vec<_>>();
+                        let eq_repr = state_positions(&new_state);
                         if seen.contains(&eq_repr) {
                             return None;
                         }
@@ -263,3 +283,37 @@ fn main() {
 
     println!("Visited: {}, Duplicate: {}", visited, duplicate);
 }
+
+
+
+// Frontier: 6005241
+// Check solutions
+// Found: 18 of length: 11
+// Elapsed: 66.044976606s
+// Visited: 4636286, Duplicate: 184082486
+
+
+
+// Length: 11
+// Frontier: 3048404
+// Check solutions
+// Found: 30 of length: 11
+// Elapsed: 66.004879274s
+// Visited: 3172209, Duplicate: 127012166
+
+
+
+// Length: 11
+// Frontier: 3048404
+// Check solutions
+// Found: 30 of length: 11
+// Elapsed: 53.147533951s
+// Visited: 3172209, Duplicate: 127012166
+
+
+// Length: 11
+// Frontier: 933598
+// Check solutions
+// Found: 2 of length: 11
+// Elapsed: 19.649023656s
+// Visited: 1318079, Duplicate: 53107642
