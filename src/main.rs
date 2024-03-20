@@ -171,8 +171,8 @@ fn main() {
         })
         .collect());
 
-    // length_map.insert(state_positions(&initial_state), 0);
-    length_map.insert(Rc::clone(&initial_state), 0);
+    length_map.insert(state_positions(&initial_state), 0);
+    // length_map.insert(Rc::clone(&initial_state), 0);
 
     // let init_element = (initial_state, 0);
     // queue.push(&init_element, Reverse(0));
@@ -180,8 +180,8 @@ fn main() {
     queue.push((Rc::clone(&initial_state),0), Reverse(0));
 
     let start = std::time::Instant::now();
-    let mut visited = 0;
-    let mut duplicate = 0;
+    let mut visited : u64 = 0;
+    let mut duplicate : u64 = 0;
 
     while let Some(((state,length), _)) = queue.pop() {
         // let length = length_map[&state];
@@ -197,7 +197,7 @@ fn main() {
             break;
         }
 
-        if length > MAX_LEN {
+        if length >= MAX_LEN {
             continue;
         }
 
@@ -237,19 +237,19 @@ fn main() {
             }
 
             // if already found with smaller length, skip
-            // let state_repr = state_positions(&new_state);
+            let state_repr = state_positions(&new_state);
             // let state_repr = new_state;
-            // if let Some(&old_length) = length_map.get(&state_repr) {
+            if let Some(&old_length) = length_map.get(&state_repr) {
             // if let Some(&old_length) = length_map.get(&*new_state) {
-            if let Some(&old_length) = length_map.get(&new_state) {
+            // if let Some(&old_length) = length_map.get(&new_state) {
                 if old_length <= new_length {
                     duplicate += 1;
                     continue;
                 }
             }
 
-            // length_map.insert(state_repr, new_length);
-            length_map.insert(Rc::clone(&new_state), new_length);
+            length_map.insert(state_repr, new_length);
+            // length_map.insert(Rc::clone(&new_state), new_length);
             // length of state as heuristic
             let heuristic = new_state.len();
             // let heuristic = 0;
