@@ -10,9 +10,7 @@ use std::cmp::Reverse;
 use std::rc::Rc;
 
 
-const NUMBERS: usize = 4;
-// const MAX_LEN: usize = 12;
-const MAX_LEN: usize = 20;
+const NUMBERS: usize = 3;
 const SWAPS: usize = 1;
 const REGS: usize = NUMBERS + SWAPS;
 const CMP: usize = 0;
@@ -171,8 +169,8 @@ fn main() {
         })
         .collect());
 
-    // length_map.insert(state_positions(&initial_state), 0);
-    length_map.insert(Rc::clone(&initial_state), 0);
+    length_map.insert(state_positions(&initial_state), 0);
+    // score_map.insert(initial_state, 0);
 
     // let init_element = (initial_state, 0);
     // queue.push(&init_element, Reverse(0));
@@ -186,6 +184,7 @@ fn main() {
     while let Some(((state,length), _)) = queue.pop() {
         // let length = length_map[&state];
         // let length = 42;
+        // let score = score_map[&state];
 
         visited += 1;
         if visited % 100000 == 0 {
@@ -197,8 +196,8 @@ fn main() {
             break;
         }
 
-        if length > MAX_LEN {
-            continue;
+        if length > 12 {
+            break;
         }
 
         // let successors =
@@ -237,22 +236,18 @@ fn main() {
             }
 
             // if already found with smaller length, skip
-            // let state_repr = state_positions(&new_state);
-            // let state_repr = new_state;
-            // if let Some(&old_length) = length_map.get(&state_repr) {
-            // if let Some(&old_length) = length_map.get(&*new_state) {
-            if let Some(&old_length) = length_map.get(&new_state) {
+            let state_repr = state_positions(&new_state);
+            if let Some(&old_length) = length_map.get(&state_repr) {
                 if old_length <= new_length {
                     duplicate += 1;
                     continue;
                 }
             }
 
-            // length_map.insert(state_repr, new_length);
-            length_map.insert(Rc::clone(&new_state), new_length);
+            length_map.insert(state_repr, new_length);
             // length of state as heuristic
-            let heuristic = new_state.len();
-            // let heuristic = 0;
+            // let heuristic = new_state.len();
+            let heuristic = 0;
             let new_score = new_length + heuristic;
             // score_map.insert(new_state, new_score);
 
@@ -320,8 +315,3 @@ fn main() {
 // Found solution: [[3, 2, 1, 1, 0, 1], [3, 2, 1, 2, 1, 0]] of length: 11
 // Visited: 2071418, Duplicate: 83909981
 // Elapsed: 60.436542603s
-
-// custom A*, len heuristic, position hash
-// Found solution: [[1, 2, 3, 1, 0, 1], [1, 2, 3, 2, 1, 0]] of length: 11
-// Visited: 39253, Duplicate: 1511701
-// Elapsed: 1.302491638s
