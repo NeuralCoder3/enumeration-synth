@@ -193,7 +193,7 @@ fn main() {
     let mut duplicate : u64 = 0;
     let mut candidates = 0;
 
-    let tmp_file = "tmp_len_15.log";
+    let tmp_file = "/home/s8maullr/results/tmp_len_15.log";
     let mut file = std::fs::File::create(tmp_file).unwrap();
 
     while let Some(((state,length), _)) = queue.pop() {
