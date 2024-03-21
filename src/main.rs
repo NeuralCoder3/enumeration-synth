@@ -155,9 +155,13 @@ fn main() {
     let possible_cmds = possible_commands();
     let permutations: Vec<Vec<u8>> = (1..=NUMBERS_U8).permutations(NUMBERS).collect(); 
     // only take 10 random permutations
-    let perm_count = 6;
-    let permutations = permutations.choose_multiple(&mut rand::thread_rng(), perm_count).cloned().collect::<Vec<_>>();
+    // let perm_count = 6;
+    // let permutations = permutations.choose_multiple(&mut rand::thread_rng(), perm_count).cloned().collect::<Vec<_>>();
     // let permutations = permutations.into_iter().take(perm_count).collect::<Vec<_>>();
+
+    // let perm_count = 6;
+    // let permutations = permutations.choose_multiple(&mut rand::thread_rng(), perm_count).cloned().collect::<Vec<_>>();
+
 
     let mut queue = PriorityQueue::new();
 
@@ -193,7 +197,7 @@ fn main() {
     let mut duplicate : u64 = 0;
     let mut candidates = 0;
 
-    let tmp_file = "/home/s8maullr/results/tmp_len_15.log";
+    let tmp_file = "/home/s8maullr/results/tmp_len_15_all_perm.log";
     let mut file = std::fs::File::create(tmp_file).unwrap();
 
     while let Some(((state,length), _)) = queue.pop() {
