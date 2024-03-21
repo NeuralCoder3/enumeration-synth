@@ -8,10 +8,12 @@ use std::collections::HashMap;
 use priority_queue::PriorityQueue;
 use std::cmp::Reverse;
 use std::rc::Rc;
+use std::io::Write;
 
 
-const NUMBERS: usize = 4;
+// const NUMBERS: usize = 3;
 // const MAX_LEN: usize = 12;
+const NUMBERS: usize = 4;
 const MAX_LEN: usize = 20;
 const SWAPS: usize = 1;
 const REGS: usize = NUMBERS + SWAPS;
@@ -23,7 +25,8 @@ const NUMBERS_U8: u8 = NUMBERS as u8;
 
 // Represents a command: (instruction, to, from)
 type Command = (usize, usize, usize);
-type Permutation = Vec<u8>;
+// type Permutation = Vec<u8>;
+type Permutation = [u8; REGS + 2];
 type State = Vec<Permutation>;
 
 fn possible_commands() -> Vec<Command> {
@@ -152,8 +155,9 @@ fn main() {
     let possible_cmds = possible_commands();
     let permutations: Vec<Vec<u8>> = (1..=NUMBERS_U8).permutations(NUMBERS).collect(); 
     // only take 10 random permutations
-    // let permutations = permutations.choose_multiple(&mut rand::thread_rng(), 10).cloned().collect::<Vec<_>>();
-    // let permutations = permutations.into_iter().take(10).collect::<Vec<_>>();
+    let perm_count = 6;
+    let permutations = permutations.choose_multiple(&mut rand::thread_rng(), perm_count).cloned().collect::<Vec<_>>();
+    // let permutations = permutations.into_iter().take(perm_count).collect::<Vec<_>>();
 
     let mut queue = PriorityQueue::new();
 
@@ -164,9 +168,14 @@ fn main() {
     let initial_state: Rc<State> = Rc::new(permutations
         .iter()
         .map(|p| {
-            let mut perm = p.clone();
-            perm.extend(&[0; SWAPS]);
-            perm.extend(&[0, 0]); // Flags
+            // let mut perm = p.clone();
+            // perm.extend(&[0; SWAPS]);
+            // perm.extend(&[0, 0]); // Flags
+            // perm
+            let mut perm = [0; REGS + 2];
+            for (i, &x) in p.iter().enumerate() {
+                perm[i] = x;
+            }
             perm
         })
         .collect());
@@ -182,6 +191,10 @@ fn main() {
     let start = std::time::Instant::now();
     let mut visited : u64 = 0;
     let mut duplicate : u64 = 0;
+    let mut candidates = 0;
+
+    let tmp_file = "tmp_len_15.log";
+    let mut file = std::fs::File::create(tmp_file).unwrap();
 
     while let Some(((state,length), _)) = queue.pop() {
         // let length = length_map[&state];
@@ -190,11 +203,23 @@ fn main() {
         visited += 1;
         if visited % 100000 == 0 {
             println!("Visited: {}, Duplicate: {}, Current length: {}", visited, duplicate, length);
+            println!("Candidates: {}", candidates);
+            file.sync_all().unwrap();
         }
 
         if state.iter().all(|p| p[0..NUMBERS] == state[0][0..NUMBERS]) {
             println!("Found solution: {:?} of length: {}", state, length);
             break;
+        }
+        
+        if length == 15 {
+        //     println!("Length 15: {:?}", state);
+        //     break;
+            // append state to file
+            let state_str = format!("{:?}\n", state);
+            file.write_all(state_str.as_bytes()).unwrap();
+            candidates += 1;
+            continue;
         }
 
         if length >= MAX_LEN {
@@ -262,6 +287,10 @@ fn main() {
             queue.push((Rc::clone(&new_state),new_length), Reverse(new_score));
         }
     }
+
+    // close file
+    file.sync_all().unwrap();
+    drop(file);
 
     println!("Visited: {}, Duplicate: {}", visited, duplicate);
     println!("Elapsed: {:?}", start.elapsed());
