@@ -203,7 +203,8 @@ fn main() {
     // #[cfg(feature = "store-canidates")]
     {
         // environment variable if available
-        let tmp_file = std::env::var("TMP_FILE").unwrap_or("/home/s8maullr/results/tmp_len_15_all_perm.log".to_string());
+        // let tmp_file = std::env::var("TMP_FILE").unwrap_or("/home/s8maullr/results/tmp_len_15_all_perm.log".to_string());
+        let tmp_file = std::env::var("TMP_FILE").unwrap_or("candidates.log".to_string());
         println!("Storing candidates in: {}", tmp_file);
         file = std::fs::File::create(tmp_file).unwrap();
     }
@@ -256,14 +257,17 @@ fn main() {
             // Visited: 15900000, Duplicate: 45826464, Cut: 122872979, Candidates: 0, Current length: 7, 
             // Visited: 15961087, Duplicate: 45826464
             // Elapsed: 470.048455071s
-        if min_perm_count[min(length,length-1)]+2 < state.len() {
-            // 
-            cut += 1;
-            continue;
-        } else 
-        if min_perm_count[length] > state.len() {
-            min_perm_count[length] = state.len();
-        }
+
+        
+        // if min_perm_count[min(length,length-1)]+2 < state.len() {
+        //     // works with 4
+        //     cut += 1;
+        //     continue;
+        // } else 
+        // if min_perm_count[length] > state.len() {
+        //     min_perm_count[length] = state.len();
+        // }
+        
         
         // if length == 15 {
         // //     println!("Length 15: {:?}", state);
@@ -335,7 +339,8 @@ fn main() {
             // length of state as heuristic
             let heuristic = new_state.len();
             // let heuristic = 0;
-            let new_score = new_length + heuristic;
+            // let new_score = new_length + heuristic;
+            let new_score = heuristic;
             // score_map.insert(new_state, new_score);
 
             // let element = (new_state, new_length);
