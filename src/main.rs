@@ -252,8 +252,12 @@ fn main() {
         //     cut += 1;
         //     continue;
         // } else 
-        // if min_perm_count[min(length,length-1)]+2 < state.len() {
-        if min_perm_count[min(length,length-1)] < state.len() {
+        // if min_perm_count[min(length,length-1)] < state.len() {
+            // Visited: 15900000, Duplicate: 45826464, Cut: 122872979, Candidates: 0, Current length: 7, 
+            // Visited: 15961087, Duplicate: 45826464
+            // Elapsed: 470.048455071s
+        if min_perm_count[min(length,length-1)]+2 < state.len() {
+            // 
             cut += 1;
             continue;
         } else 
@@ -353,6 +357,7 @@ fn main() {
 }
 
 // TMP_FILE=candidates.log cargo run --release --features "store-candidates"
+// TMP_FILE=candidates.log cargo run --release --bin compute_vec --all-features
 
 // cargo build --release --features "store-candidates"
 // TMP_FILE=candidates.log
