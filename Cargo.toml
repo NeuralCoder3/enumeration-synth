@@ -10,3 +10,9 @@ itertools = "0.12.1"
 priority-queue = "2.0.2"
 rand = "0.8.5"
 rayon = "1.9.0"
+
+
+[features]
+store-candidates = []
+
+default = ["store-candidates"]

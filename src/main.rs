@@ -9,7 +9,7 @@ use priority_queue::PriorityQueue;
 use std::cmp::Reverse;
 use std::rc::Rc;
 use std::io::Write;
-
+use std::cmp::min;
 
 // const NUMBERS: usize = 3;
 // const MAX_LEN: usize = 12;
@@ -154,6 +154,7 @@ fn state_positions(state: &State) -> Vec<PermInfo> {
 fn main() {
     let possible_cmds = possible_commands();
     let permutations: Vec<Vec<u8>> = (1..=NUMBERS_U8).permutations(NUMBERS).collect(); 
+    let init_perm_count = permutations.len();
     // only take 10 random permutations
     // let perm_count = 6;
     // let permutations = permutations.choose_multiple(&mut rand::thread_rng(), perm_count).cloned().collect::<Vec<_>>();
@@ -196,9 +197,18 @@ fn main() {
     let mut visited : u64 = 0;
     let mut duplicate : u64 = 0;
     let mut candidates = 0;
+    let mut cut : u64 = 0;
 
-    let tmp_file = "/home/s8maullr/results/tmp_len_15_all_perm.log";
-    let mut file = std::fs::File::create(tmp_file).unwrap();
+    let mut file;
+    // #[cfg(feature = "store-canidates")]
+    {
+        // environment variable if available
+        let tmp_file = std::env::var("TMP_FILE").unwrap_or("/home/s8maullr/results/tmp_len_15_all_perm.log".to_string());
+        println!("Storing candidates in: {}", tmp_file);
+        file = std::fs::File::create(tmp_file).unwrap();
+    }
+
+    let mut min_perm_count = [init_perm_count; MAX_LEN+1];
 
     while let Some(((state,length), _)) = queue.pop() {
         // let length = length_map[&state];
@@ -206,8 +216,14 @@ fn main() {
 
         visited += 1;
         if visited % 100000 == 0 {
-            println!("Visited: {}, Duplicate: {}, Current length: {}", visited, duplicate, length);
-            println!("Candidates: {}", candidates);
+            // println!("Visited: {}, Duplicate: {}, Current length: {}", visited, duplicate, length);
+            print!("Visited: {}, ", visited);
+            print!("Duplicate: {}, ", duplicate);
+            print!("Cut: {}, ", cut);
+            print!("Candidates: {}, ", candidates);
+            print!("Current length: {}, ", length);
+            println!("");
+            // #[cfg(feature = "store-canidates")]
             file.sync_all().unwrap();
         }
 
@@ -215,16 +231,48 @@ fn main() {
             println!("Found solution: {:?} of length: {}", state, length);
             break;
         }
-        
-        if length == 15 {
-        //     println!("Length 15: {:?}", state);
-        //     break;
-            // append state to file
-            let state_str = format!("{:?}\n", state);
-            file.write_all(state_str.as_bytes()).unwrap();
-            candidates += 1;
+
+        // if length >= MAX_LEN/3 && state.len() >= init_perm_count/3 {
+        //     cut += 1;
+        //     continue;
+        // }
+
+        // if length >= MAX_LEN/2 && state.len() >= init_perm_count/2 {
+        //     cut += 1;
+        //     continue;
+        // }
+        // if length == 6 && state.len() >= init_perm_count-2 {
+        //     cut += 1;
+        //     continue;
+        // }
+
+
+        // if min_perm_count[length] < state.len() {
+        //     // TODO: too strict? => yes
+        //     cut += 1;
+        //     continue;
+        // } else 
+        // if min_perm_count[min(length,length-1)]+2 < state.len() {
+        if min_perm_count[min(length,length-1)] < state.len() {
+            cut += 1;
             continue;
+        } else 
+        if min_perm_count[length] > state.len() {
+            min_perm_count[length] = state.len();
         }
+        
+        // if length == 15 {
+        // //     println!("Length 15: {:?}", state);
+        // //     break;
+        //     // append state to file
+        //     // #[cfg(feature = "store-canidates")]
+        //     {
+        //     let state_str = format!("{:?}\n", state);
+        //     file.write_all(state_str.as_bytes()).unwrap();
+        //     }
+        //     candidates += 1;
+        //     continue;
+        // }
 
         if length >= MAX_LEN {
             continue;
@@ -261,7 +309,8 @@ fn main() {
             let new_length = length + 1;
 
             if !viable(&new_state) {
-                duplicate += 1;
+                // duplicate += 1;
+                cut += 1;
                 continue;
             }
 
@@ -292,13 +341,24 @@ fn main() {
         }
     }
 
+    // #[cfg(feature = "store-canidates")]
+    {
     // close file
     file.sync_all().unwrap();
     drop(file);
+    }
 
     println!("Visited: {}, Duplicate: {}", visited, duplicate);
     println!("Elapsed: {:?}", start.elapsed());
 }
+
+// TMP_FILE=candidates.log cargo run --release --features "store-candidates"
+
+// cargo build --release --features "store-candidates"
+// TMP_FILE=candidates.log
+
+
+
 
 
 
@@ -358,3 +418,11 @@ fn main() {
 // Found solution: [[1, 2, 3, 1, 0, 1], [1, 2, 3, 2, 1, 0]] of length: 11
 // Visited: 39253, Duplicate: 1511701
 // Elapsed: 1.302491638s
+
+
+
+
+// greedy cut all permutations for 4 => no solutions
+// Visited: 3100000, Duplicate: 9377953, Cut: 22331993, Candidates: 0, Current length: 6, 
+// Visited: 3142624, Duplicate: 9377953
+// Elapsed: 48.940570828s
