@@ -111,7 +111,7 @@ fn show_command(cmd: &Command) -> String {
 // TODO: https://rust-unofficial.github.io/too-many-lists/
 // https://rust-unofficial.github.io/too-many-lists/second-option.html
 // for how to correctly implement a linked list stack
-#[derive(Clone, Eq, PartialEq, Hash)]
+#[derive(Clone)]
 struct Node {
     cmd: Command,
     prev: Option<Box<Node>>,
@@ -191,8 +191,7 @@ fn main() {
     // let init_element = (initial_state, 0);
     // queue.push(&init_element, Reverse(0));
     // queue.push(&initial_state, Reverse(0));
-    let node0 = Node{cmd: (0,0,0), prev: None};
-    queue.push((node0,Rc::clone(&initial_state),0), Reverse(0));
+    queue.push((Rc::clone(&initial_state),0), Reverse(0));
 
     let start = std::time::Instant::now();
     let mut visited : u64 = 0;
@@ -212,7 +211,7 @@ fn main() {
 
     let mut min_perm_count = [init_perm_count; MAX_LEN+1];
 
-    while let Some(((prg,state,length), _)) = queue.pop() {
+    while let Some(((state,length), _)) = queue.pop() {
         // let length = length_map[&state];
         // let length = 42;
 
@@ -231,21 +230,6 @@ fn main() {
 
         if state.iter().all(|p| p[0..NUMBERS] == state[0][0..NUMBERS]) {
             println!("Found solution: {:?} of length: {}", state, length);
-
-
-            // reconstruct program
-            let mut prg = prg;
-            let mut cmds = vec![];
-            while let Some(node) = prg.prev {
-                cmds.push(prg.cmd);
-                prg = *node;
-            }
-            cmds.reverse();
-            println!("Program:");
-            for cmd in cmds {
-                println!("{}", show_command(&cmd));
-            }
-
             break;
         }
 
@@ -275,14 +259,14 @@ fn main() {
             // Elapsed: 470.048455071s
 
         
-        if min_perm_count[min(length,length-1)]+2 < state.len() {
-            // works with 4
-            cut += 1;
-            continue;
-        } else 
-        if min_perm_count[length] > state.len() {
-            min_perm_count[length] = state.len();
-        }
+        // if min_perm_count[min(length,length-1)]+2 < state.len() {
+        //     // works with 4
+        //     cut += 1;
+        //     continue;
+        // } else 
+        // if min_perm_count[length] > state.len() {
+        //     min_perm_count[length] = state.len();
+        // }
         
         
         // if length == 15 {
@@ -328,9 +312,6 @@ fn main() {
 
         //     queue.push(new_state, Reverse(new_score));
         // }
-
-        let prev_box = Some(Box::new(prg));
-
         for cmd in &possible_cmds {
             let new_state = Rc::new(apply_all(&cmd, &state));
             let new_length = length + 1;
@@ -358,16 +339,14 @@ fn main() {
             // length of state as heuristic
             let heuristic = new_state.len();
             // let heuristic = 0;
-            let new_score = new_length + heuristic;
-            // let new_score = heuristic;
+            // let new_score = new_length + heuristic;
+            let new_score = heuristic;
             // score_map.insert(new_state, new_score);
 
             // let element = (new_state, new_length);
             // queue.push(&element, Reverse(new_score));
             // queue.push(&new_state, Reverse(new_score));
-            let prg = Node{cmd: *cmd, prev: prev_box.clone()};
-            // queue.push((Rc::clone(&new_state),new_length), Reverse(new_score));
-            queue.push((prg,Rc::clone(&new_state),new_length), Reverse(new_score));
+            queue.push((Rc::clone(&new_state),new_length), Reverse(new_score));
         }
     }
 
