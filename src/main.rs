@@ -556,11 +556,12 @@ fn main() {
             // Elapsed: 470.048455071s
 
         
-        let needed_instructions = state.iter().map(|p| instructions_needed.get(p).unwrap()).max().unwrap();
-        if needed_instructions + length >= MAX_LEN {
-            cut += 1;
-            continue;
-        }
+        // let needed_instructions = state.iter().map(|p| instructions_needed.get(p).unwrap()).max().unwrap();
+        // if needed_instructions + length >= MAX_LEN {
+        //     cut += 1;
+        //     continue;
+        // }
+
         // if min_perm_count[min(length,length-1)]+2 < state.len() {
         //     // works with 4
         //     cut += 1;
@@ -630,6 +631,13 @@ fn main() {
 
             if !viable(&new_state) {
                 // duplicate += 1;
+                cut += 1;
+                continue;
+            }
+
+            // cut before insertion to save memory (and have value ready for heuristics)
+            let needed_instructions = new_state.iter().map(|p| instructions_needed.get(p).unwrap()).max().unwrap();
+            if needed_instructions + new_length >= MAX_LEN {
                 cut += 1;
                 continue;
             }
