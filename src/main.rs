@@ -275,14 +275,14 @@ fn main() {
             // Elapsed: 470.048455071s
 
         
-        if min_perm_count[min(length,length-1)]+2 < state.len() {
-            // works with 4
-            cut += 1;
-            continue;
-        } else 
-        if min_perm_count[length] > state.len() {
-            min_perm_count[length] = state.len();
-        }
+        // if min_perm_count[min(length,length-1)]+2 < state.len() {
+        //     // works with 4
+        //     cut += 1;
+        //     continue;
+        // } else 
+        // if min_perm_count[length] > state.len() {
+        //     min_perm_count[length] = state.len();
+        // }
         
         
         // if length == 15 {
@@ -356,7 +356,18 @@ fn main() {
             length_map.insert(state_repr, new_length);
             // length_map.insert(Rc::clone(&new_state), new_length);
             // length of state as heuristic
-            let heuristic = new_state.len();
+            // let heuristic = new_state.len();
+
+
+            // unique permutations in 0..NUMBERS
+            // we are only interested in the unique permutations
+            // to be precise, the log of the perm count is a good heuristic for the needed swaps
+            // each swap halves the number of permutations
+            let heuristic = new_state.iter().map(|p| &p[0..NUMBERS]).unique().count();
+            // fast log2
+            // let heuristic = std::mem::size_of::<usize>() * 8 - (heuristic.leading_zeros() as usize) - 1;
+            // we weigh the swaps with 4 as each swap takes roughly 4 instructions
+            let heuristic = 4*heuristic;
             // let heuristic = 0;
             let new_score = new_length + heuristic;
             // let new_score = heuristic;
