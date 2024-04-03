@@ -1,5 +1,6 @@
 use itertools::Itertools;
 use std::collections::HashSet;
+use std::collections::VecDeque;
 use rayon::iter::IntoParallelIterator as _;
 use rayon::iter::ParallelIterator as _;
 use rand::seq::SliceRandom;
@@ -65,6 +66,62 @@ fn apply(cmd: &Command, perm: &mut Permutation) {
             if perm[REGS + 0] == 1 {
                 perm[to] = perm[from];
             }
+        }
+        _ => panic!("Unknown instruction"),
+    }
+}
+
+fn apply_invers(cmd: &Command, perm: &Permutation) -> Vec<Permutation> {
+    let (instr, to, from) = *cmd;
+    match instr {
+        CMP => {
+            let lt_flag = perm[REGS + 0];
+            let gt_flag = perm[REGS + 1];
+            // check that flags are set correctly
+            if ((lt_flag == 0 && !(perm[to] < perm[from])) || (lt_flag == 1 && perm[to] < perm[from])) &&
+                ((gt_flag == 0 && !(perm[to] > perm[from])) || (gt_flag == 1 && perm[to] > perm[from])) {
+                // valid flags
+                // => return state with flags as anything (would be overwritten)
+                return 
+                // 0,0; 0,1; 1,0; 1,1
+                [(0,0), (0,1), (1,0), (1,1)].iter().map(|(lt,gt)| {
+                    let mut new_perm = perm.clone();
+                    new_perm[REGS + 0] = *lt;
+                    new_perm[REGS + 1] = *gt;
+                    new_perm
+                }).collect::<Vec<_>>();
+            }else {
+                return vec![];
+            }
+        }
+        MOV => {
+            if perm[to] != perm[from] {
+                return vec![];
+            }
+            // dest could be anything before
+            return [0;NUMBERS+1].iter().enumerate().map(|(x, _)| {
+                let mut new_perm = perm.clone();
+                new_perm[to] = x as u8;
+                new_perm
+            }).collect::<Vec<_>>();
+        }
+        CMOVG => {
+            let gt_flag = perm[REGS + 1];
+            if gt_flag == 0 {
+                // flag not set => noop
+                return vec![perm.clone()];
+            }
+            // flag set => was overwrite (same as with MOV)
+            return apply_invers(&(MOV, to, from), perm);
+        }
+        CMOVL => {
+            let lt_flag = perm[REGS + 0];
+            if lt_flag == 0 {
+                // flag not set => noop
+                return vec![perm.clone()];
+            }
+            // flag set => was overwrite (same as with MOV)
+            return apply_invers(&(MOV, to, from), perm);
         }
         _ => panic!("Unknown instruction"),
     }
@@ -162,6 +219,110 @@ fn main() {
 
     // let perm_count = 6;
     // let permutations = permutations.choose_multiple(&mut rand::thread_rng(), perm_count).cloned().collect::<Vec<_>>();
+
+    let mut swaps_needed = HashMap::new();
+    // [u8] -> swap count
+    // {
+    //     // via BFS from 1,...,NUMBERS -> until all permutations found
+    //     let mut frontier = vec![];
+    //     let mut init_perm = [0; NUMBERS];
+    //     for (i, x) in init_perm.iter_mut().enumerate() {
+    //         *x = (i+1) as u8;
+    //     }
+    //     frontier.push(init_perm);
+    //     swaps_needed.insert(init_perm, 0);
+    //     while let Some(perm) = frontier.pop() {
+    //         let swaps = swaps_needed[&perm];
+    //         for i in 0..NUMBERS {
+    //             for j in (i + 1)..NUMBERS {
+    //                 let mut new_perm = perm.clone();
+    //                 new_perm.swap(i, j);
+    //                 if !swaps_needed.contains_key(&new_perm) {
+    //                     swaps_needed.insert(new_perm, swaps + 1);
+    //                     frontier.push(new_perm);
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     println!("Computed swaps for {} permutations", swaps_needed.len());
+    //     if swaps_needed.len() != init_perm_count {
+    //         panic!("Not all permutations found");
+    //     }
+    //     for perm in swaps_needed.keys() {
+    //         println!("Swaps for {:?}: {}", perm, swaps_needed[perm]);
+    //     }
+    //     // for perm in &permutations {
+    //     //     // println!("Swaps for {:?}: {}", perm, swaps_needed[&perm[..]]);
+    //     //     if !swaps_needed.contains_key(&perm[..]) {
+    //     //         panic!("Permutation {:?} not found", perm);
+    //     //     }
+    //     // }
+    // }
+
+
+    // now try any instructions -> relax heuristic (ignore all other dependencies)
+    // could be used to only investigate programs that lead to a relaxed solution
+    // there might be an instruction that is suboptimal across all individual but optimal global 
+    // let's ignore that
+    let mut useful_instructions = HashMap::new();
+    {
+        let mut frontier = VecDeque::new();
+        let mut init_perm :Permutation = [0; REGS + 2];
+        // let mut init_perm : Rc<Permutation> = Rc::new([0; REGS + 2]);
+        // 0..NUMBERS -> [1,2,..,NUMBERS]
+        for (i, x) in init_perm[0..NUMBERS].iter_mut().enumerate() {
+            *x = (i+1) as u8;
+        }
+        // frontier.push(init_perm);
+        // swaps_needed.insert(init_perm, 0);
+        let init_perms : Vec<Permutation> = 
+            // any swap and any flags
+            // possible flags
+            [(0,0), (0,1), (1,0), (1,1)].iter().map(|(lt,gt)| {
+                // possible swap values
+                [0; NUMBERS+1].iter().enumerate().map(|(x, _)| {
+                    let mut new_perm = init_perm.clone();
+                    new_perm[NUMBERS] = x as u8;
+                    new_perm[REGS + 0] = *lt;
+                    new_perm[REGS + 1] = *gt;
+                    new_perm
+                }).collect::<Vec<_>>()
+            }).flatten().collect();
+        for perm in init_perms {
+            swaps_needed.insert(perm, 0);
+            frontier.push_back(perm);
+        }
+
+        let commands = possible_commands();
+        // let mut commands = vec![];
+        // for instr in &[MOV, CMOVG, CMOVL, CMP] {
+        // // for instr in &[MOV] {
+        //     for to in 0..REGS {
+        //         for from in 0..REGS {
+        //             if to != from {
+        //                 commands.push((*instr, to, from));
+        //             }
+        //         }
+        //     }
+        // }
+
+        while let Some(perm) = frontier.pop_front() {
+            let instructions = swaps_needed[&perm];
+            for cmd in &commands {
+                for new_perm in apply_invers(cmd, &perm) {
+                    if !swaps_needed.contains_key(&new_perm) {
+                        swaps_needed.insert(new_perm, instructions + 1);
+                        frontier.push_back(new_perm);
+                        // add cmd to vec of new_perm
+                        useful_instructions.entry(new_perm).or_insert(vec![]).push(*cmd);
+                    }
+                }
+            }
+        }
+        // for perm in swaps_needed.keys() {
+        //     println!("Instructions for {:?}: {}", perm, swaps_needed[perm]);
+        // }
+    }
 
 
     let mut queue = PriorityQueue::new();
@@ -331,7 +492,14 @@ fn main() {
 
         let prev_box = Some(Box::new(prg));
 
-        for cmd in &possible_cmds {
+        // let commands = possible_cmds;
+        let commands = 
+            state.iter().flat_map(|p| useful_instructions.get(p).unwrap_or(&possible_cmds).iter())
+            .unique()
+            .cloned()
+            .collect::<Vec<_>>();
+
+        for cmd in &commands {
             let new_state = Rc::new(apply_all(&cmd, &state));
             let new_length = length + 1;
 
@@ -359,15 +527,32 @@ fn main() {
             // let heuristic = new_state.len();
 
 
-            // unique permutations in 0..NUMBERS
-            // we are only interested in the unique permutations
-            // to be precise, the log of the perm count is a good heuristic for the needed swaps
-            // each swap halves the number of permutations
-            let heuristic = new_state.iter().map(|p| &p[0..NUMBERS]).unique().count();
-            // fast log2
-            // let heuristic = std::mem::size_of::<usize>() * 8 - (heuristic.leading_zeros() as usize) - 1;
-            // we weigh the swaps with 4 as each swap takes roughly 4 instructions
-            let heuristic = 4*heuristic;
+            // // unique permutations in 0..NUMBERS
+            // // we are only interested in the unique permutations
+            // // to be precise, the log of the perm count is a good heuristic for the needed swaps
+            // // each swap halves the number of permutations
+            // let heuristic = new_state.iter().map(|p| &p[0..NUMBERS]).unique().count();
+            // // fast log2
+            // // let heuristic = std::mem::size_of::<usize>() * 8 - (heuristic.leading_zeros() as usize) - 1;
+            // // we weigh the swaps with 4 as each swap takes roughly 4 instructions
+            // let heuristic = 4*heuristic;
+
+
+            // max of needed swaps over all permutations
+            // for p in new_state.iter() {
+            //     if !swaps_needed.contains_key(&p[0..NUMBERS]) {
+            //         panic!("Permutation {:?} not found", &p[0..NUMBERS]);
+            //     }
+            // }
+            // let heuristic = new_state.iter().map(|p| swaps_needed[&(p[0..NUMBERS])]).max().unwrap();
+            // let heuristic = new_state.iter().map(|p| swaps_needed.get(&p[0..NUMBERS]).unwrap_or(&2)).max().unwrap();
+            // let heuristic = new_state.iter().map(|p| swaps_needed.get(&p[0..NUMBERS]).unwrap_or(&1)).max().unwrap();
+            // let heuristic = 4*new_state.iter().map(|p| swaps_needed.get(&p[0..NUMBERS]).unwrap_or(&1)).sum::<usize>();
+            // let heuristic = new_state.iter().map(|p| swaps_needed.get(&p[0..NUMBERS]).unwrap_or(&1)).sum::<usize>();
+
+            // try with instruction heuristic instead
+            let heuristic = new_state.iter().map(|p| swaps_needed[p]).max().unwrap();
+
             // let heuristic = 0;
             let new_score = new_length + heuristic;
             // let new_score = heuristic;
