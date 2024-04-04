@@ -19,10 +19,10 @@ use serde::{Serialize, Deserialize};
 // use compressible_map::CompressibleMap;
 // use diskmap::DiskMap;
 
-const NUMBERS: usize = 3;
-const MAX_LEN: usize = 12;
-// const NUMBERS: usize = 4;
-// const MAX_LEN: usize = 20;
+// const NUMBERS: usize = 3;
+// const MAX_LEN: usize = 12;
+const NUMBERS: usize = 4;
+const MAX_LEN: usize = 20;
 const SWAPS: usize = 1;
 const REGS: usize = NUMBERS + SWAPS;
 const CMP: usize = 0;
