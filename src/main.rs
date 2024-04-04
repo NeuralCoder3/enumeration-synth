@@ -42,10 +42,10 @@ Libraries:
 
 // const NUMBERS: usize = 3;
 // const MAX_LEN: u8 = 12;
-const NUMBERS: usize = 4;
-const MAX_LEN: u8 = 20;
-// const NUMBERS: usize = 5;
-// const MAX_LEN: u8 = 33;
+// const NUMBERS: usize = 4;
+// const MAX_LEN: u8 = 20;
+const NUMBERS: usize = 5;
+const MAX_LEN: u8 = 33;
 // https://github.com/google-deepmind/alphadev/blob/main/sort_functions_test.cc
 const SWAPS: usize = 1;
 const REGS: usize = NUMBERS + SWAPS;
@@ -485,6 +485,16 @@ fn main() {
     }
     println!("Using sled map: {}", path);
 
+    // if in git repository, print hash
+    let git_hash = std::process::Command::new("git")
+        .args(&["rev-parse", "--short", "HEAD"])
+        .output()
+        .expect("failed to execute git")
+        .stdout;
+    let git_hash = String::from_utf8(git_hash).unwrap();
+    println!("Git hash: {}", git_hash);
+
+
     // let mut length_map = HashMap::new();
     // let length_map = sled::open("/tmp/sled-map2").unwrap();
     let length_map = sled::open(path).unwrap();
@@ -705,14 +715,14 @@ fn main() {
             //     min_perm_count[new_length_u] = perm_count;
             // }
 
-        // if min_perm_count[min(new_length_u,new_length_u-1)]+2 < new_state.len() {
-        //     // works with 4
-        //     cut += 1;
-        //     continue;
-        // } 
-        // if min_perm_count[new_length_u] > new_state.len() {
-        //     min_perm_count[new_length_u] = new_state.len();
-        // }
+        if min_perm_count[min(new_length_u,new_length_u-1)]+2 < new_state.len() {
+            // works with 4
+            cut += 1;
+            continue;
+        } 
+        if min_perm_count[new_length_u] > new_state.len() {
+            min_perm_count[new_length_u] = new_state.len();
+        }
 
 
             // if already found with smaller length, skip
