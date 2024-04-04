@@ -22,7 +22,7 @@ use serde::{Serialize, Deserialize};
 // const NUMBERS: usize = 3;
 // const MAX_LEN: usize = 12;
 const NUMBERS: usize = 4;
-const MAX_LEN: usize = 20;
+const MAX_LEN: u8 = 20;
 const SWAPS: usize = 1;
 const REGS: usize = NUMBERS + SWAPS;
 const CMP: usize = 0;
@@ -318,9 +318,15 @@ fn perm_positions(perm: &Permutation) -> PermInfo {
     PermInfo{perm: pos, flags}
 }
 
-fn state_positions(state: &State) -> Vec<PermInfo> {
+// fn state_positions(state: &State) -> Vec<PermInfo> {
+// fn state_positions(state: &State) -> PermInfoVec {
+// fn state_positions(state: &State) -> State {
+fn state_positions(state: &State) -> Vec<u8> {
     // state.iter().map(|p| perm_positions(p)).sorted().collect()
-    state.iter().map(|p| perm_positions(p)).collect()
+    // let res = state.iter().map(|p| perm_positions(p)).collect();
+    // PermInfoVec(res)
+    // state.clone()
+    state.iter().flat_map(|p| p.0).collect()
 }
 
 fn main() {
@@ -444,7 +450,20 @@ fn main() {
 
     let mut queue = PriorityQueue::new();
 
-    let mut length_map = HashMap::new();
+    // _CONDOR_SCRATCH_DIR or /tmp/ else
+    // find unused sled-mapX file
+    let tmp_dir = std::env::var("_CONDOR_SCRATCH_DIR").unwrap_or("/tmp".to_string());
+    let mut i = 0;
+    let mut path = format!("{}/sled-map{}", tmp_dir, i);
+    while std::path::Path::new(&path).exists() {
+        i += 1;
+        path = format!("{}/sled-map{}", tmp_dir, i);
+    }
+    println!("Using sled map: {}", path);
+
+    // let mut length_map = HashMap::new();
+    // let length_map = sled::open("/tmp/sled-map2").unwrap();
+    let length_map = sled::open(path).unwrap();
     // let mut length_map = CompressibleMap::new(compression_params);
     // let length_map : DiskMap<PermInfoVec, usize> = DiskMap::open_new("/tmp/db").unwrap();
     // let score_map = HashMap::new();
@@ -466,14 +485,16 @@ fn main() {
         })
         .collect());
 
-    length_map.insert(state_positions(&initial_state).into(), 0);//.unwrap();
+    // length_map.insert(state_positions(&initial_state).into(), 0);//.unwrap();
+    length_map.insert(state_positions(&initial_state), vec![0 as u8]).unwrap();
+    // length_map.insert(state_positions(&initial_state), vec![0 as u8]);//.unwrap();
     // length_map.insert(Rc::clone(&initial_state), 0);
 
     // let init_element = (initial_state, 0);
     // queue.push(&init_element, Reverse(0));
     // queue.push(&initial_state, Reverse(0));
     let node0 = Node{cmd: (0,0,0), prev: None};
-    queue.push((node0,Rc::clone(&initial_state),0), Reverse(0));
+    queue.push((node0,Rc::clone(&initial_state),0 as u8), Reverse(0));
 
     let mut visited : u64 = 0;
     let mut duplicate : u64 = 0;
@@ -490,7 +511,7 @@ fn main() {
     //     file = std::fs::File::create(tmp_file).unwrap();
     // }
 
-    let mut min_perm_count = [init_perm_count; MAX_LEN+1];
+    let mut min_perm_count = [init_perm_count; (MAX_LEN as usize)+1];
 
     let start = std::time::Instant::now();
     while let Some(((prg,state,length), _)) = queue.pop() {
@@ -505,6 +526,7 @@ fn main() {
             print!("Cut: {}, ", cut);
             print!("Candidates: {}, ", candidates);
             print!("Current length: {}, ", length);
+            print!("Time: {:?}", start.elapsed());
             println!("");
             // #[cfg(feature = "store-canidates")]
             // file.sync_all().unwrap();
@@ -646,7 +668,10 @@ fn main() {
             let state_repr = state_positions(&new_state);
             // let state_repr = state_positions(&new_state).into();
             // let state_repr = new_state;
-            if let Some(&old_length) = length_map.get(&state_repr) {
+            // if let Some(&old_length) = length_map.get(&state_repr) {
+            if let Some(old_length_vec) = length_map.get(&state_repr).unwrap() {
+            // if let Some(old_length_vec) = length_map.get(&state_repr) {
+                let old_length = old_length_vec[0];
             // if let Ok(old_length) = length_map.get(&state_repr) {
             // if let Some(&old_length) = length_map.get(&*new_state) {
             // if let Some(&old_length) = length_map.get(&new_state) {
@@ -655,7 +680,9 @@ fn main() {
                     continue;
                 }
             }
-            length_map.insert(state_repr, new_length);//.unwrap();
+            // length_map.insert(state_repr, new_length);//.unwrap();
+            length_map.insert(state_repr, vec![new_length]).unwrap();
+            // length_map.insert(state_repr, vec![new_length]);//.unwrap();
             // length_map.insert(Rc::clone(&new_state), new_length);
             // length of state as heuristic
             // let heuristic = new_state.len();
