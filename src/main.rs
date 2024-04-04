@@ -44,6 +44,9 @@ Libraries:
 // const MAX_LEN: u8 = 12;
 const NUMBERS: usize = 4;
 const MAX_LEN: u8 = 20;
+// const NUMBERS: usize = 5;
+// const MAX_LEN: u8 = 33;
+// https://github.com/google-deepmind/alphadev/blob/main/sort_functions_test.cc
 const SWAPS: usize = 1;
 const REGS: usize = NUMBERS + SWAPS;
 const CMP: usize = 0;
@@ -662,13 +665,14 @@ fn main() {
         let prev_box = Some(Box::new(prg));
 
         // let commands = possible_cmds;
-        // let commands = 
-        //     state.iter().flat_map(|p| useful_instructions.get(p).unwrap_or(&possible_cmds).iter())
-        //     .unique()
-        //     .cloned()
-        //     .collect::<Vec<_>>();
+        let commands = 
+            state.iter().flat_map(|p| useful_instructions.get(p).unwrap_or(&possible_cmds).iter())
+            .unique()
+            // .cloned()
+            .collect::<Vec<_>>();
 
-        for cmd in &possible_cmds {
+        // for cmd in &possible_cmds {
+        for cmd in commands {
             let new_state = Rc::new(apply_all(&cmd, &state));
             let new_length = length + 1;
 
@@ -680,10 +684,10 @@ fn main() {
 
             // cut before insertion to save memory (and have value ready for heuristics)
             let needed_instructions = new_state.iter().map(|p| instructions_needed.get(p).unwrap()).max().unwrap();
-            // if needed_instructions + new_length > MAX_LEN {
-            //     cut += 1;
-            //     continue;
-            // }
+            if needed_instructions + new_length > MAX_LEN {
+                cut += 1;
+                continue;
+            }
 
             let perm_count = new_state.iter().map(|p| &p[0..NUMBERS]).unique().count();
 
@@ -691,7 +695,7 @@ fn main() {
             // why is it so good
             // why is it valid
             let new_length_u = new_length as usize;
-            // if min_perm_count[min(new_length_u,new_length_u-1)]+2 < perm_count {
+            // // if min_perm_count[min(new_length_u,new_length_u-1)]+2 < perm_count {
             // if min_perm_count[length as usize]+2 < perm_count {
             //     // works with 4
             //     cut += 1;
@@ -700,14 +704,15 @@ fn main() {
             // if min_perm_count[new_length_u] > perm_count {
             //     min_perm_count[new_length_u] = perm_count;
             // }
-        if min_perm_count[min(new_length_u,new_length_u-1)]+2 < new_state.len() {
-            // works with 4
-            cut += 1;
-            continue;
-        } 
-        if min_perm_count[new_length_u] > new_state.len() {
-            min_perm_count[new_length_u] = new_state.len();
-        }
+
+        // if min_perm_count[min(new_length_u,new_length_u-1)]+2 < new_state.len() {
+        //     // works with 4
+        //     cut += 1;
+        //     continue;
+        // } 
+        // if min_perm_count[new_length_u] > new_state.len() {
+        //     min_perm_count[new_length_u] = new_state.len();
+        // }
 
 
             // if already found with smaller length, skip
