@@ -16,11 +16,32 @@ use std::cmp::min;
 use serde::{Serialize, Deserialize};
 
 
+/*
+For large memory:
+- SQL Database
+- External Memory Algorithms
+- Bloom Filters
+- Compression Database
+- Disk-based hashmap
+- Cut State Space
+- LRU Cache
+- Partition State Space (until X, then from there)
+
+Libraries:
+- hashbrown
+- sled
+- diskmap
+- compressible_map
+- file_hashmap
+- abomonation
+*/
+
+
 // use compressible_map::CompressibleMap;
 // use diskmap::DiskMap;
 
 // const NUMBERS: usize = 3;
-// const MAX_LEN: usize = 12;
+// const MAX_LEN: u8 = 12;
 const NUMBERS: usize = 4;
 const MAX_LEN: u8 = 20;
 const SWAPS: usize = 1;
@@ -641,13 +662,13 @@ fn main() {
         let prev_box = Some(Box::new(prg));
 
         // let commands = possible_cmds;
-        let commands = 
-            state.iter().flat_map(|p| useful_instructions.get(p).unwrap_or(&possible_cmds).iter())
-            .unique()
-            .cloned()
-            .collect::<Vec<_>>();
+        // let commands = 
+        //     state.iter().flat_map(|p| useful_instructions.get(p).unwrap_or(&possible_cmds).iter())
+        //     .unique()
+        //     .cloned()
+        //     .collect::<Vec<_>>();
 
-        for cmd in &commands {
+        for cmd in &possible_cmds {
             let new_state = Rc::new(apply_all(&cmd, &state));
             let new_length = length + 1;
 
@@ -659,10 +680,35 @@ fn main() {
 
             // cut before insertion to save memory (and have value ready for heuristics)
             let needed_instructions = new_state.iter().map(|p| instructions_needed.get(p).unwrap()).max().unwrap();
-            if needed_instructions + new_length >= MAX_LEN {
-                cut += 1;
-                continue;
-            }
+            // if needed_instructions + new_length > MAX_LEN {
+            //     cut += 1;
+            //     continue;
+            // }
+
+            let perm_count = new_state.iter().map(|p| &p[0..NUMBERS]).unique().count();
+
+            // TODO: why is this not subsumed by a*
+            // why is it so good
+            // why is it valid
+            let new_length_u = new_length as usize;
+            // if min_perm_count[min(new_length_u,new_length_u-1)]+2 < perm_count {
+            // if min_perm_count[length as usize]+2 < perm_count {
+            //     // works with 4
+            //     cut += 1;
+            //     continue;
+            // } 
+            // if min_perm_count[new_length_u] > perm_count {
+            //     min_perm_count[new_length_u] = perm_count;
+            // }
+        if min_perm_count[min(new_length_u,new_length_u-1)]+2 < new_state.len() {
+            // works with 4
+            cut += 1;
+            continue;
+        } 
+        if min_perm_count[new_length_u] > new_state.len() {
+            min_perm_count[new_length_u] = new_state.len();
+        }
+
 
             // if already found with smaller length, skip
             let state_repr = state_positions(&new_state);
@@ -692,7 +738,7 @@ fn main() {
             // // we are only interested in the unique permutations
             // // to be precise, the log of the perm count is a good heuristic for the needed swaps
             // // each swap halves the number of permutations
-            let heuristic = new_state.iter().map(|p| &p[0..NUMBERS]).unique().count();
+            let heuristic = perm_count as u8;
             // // fast log2
             // // let heuristic = std::mem::size_of::<usize>() * 8 - (heuristic.leading_zeros() as usize) - 1;
             // // we weigh the swaps with 4 as each swap takes roughly 4 instructions
@@ -715,8 +761,8 @@ fn main() {
             // let heuristic = new_state.iter().map(|p| instructions_needed[p]).max().unwrap();
 
             // let heuristic = 0;
-            // let new_score = new_length + heuristic;
-            let new_score = heuristic;
+            let new_score = new_length + heuristic;
+            // let new_score = heuristic;
             // score_map.insert(new_state, new_score);
 
             // let element = (new_state, new_length);
