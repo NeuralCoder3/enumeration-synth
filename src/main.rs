@@ -19,10 +19,10 @@ use serde::{Serialize, Deserialize};
 // use compressible_map::CompressibleMap;
 // use diskmap::DiskMap;
 
-// const NUMBERS: usize = 3;
-// const MAX_LEN: usize = 12;
-const NUMBERS: usize = 4;
-const MAX_LEN: usize = 20;
+const NUMBERS: usize = 3;
+const MAX_LEN: usize = 12;
+// const NUMBERS: usize = 4;
+// const MAX_LEN: usize = 20;
 const SWAPS: usize = 1;
 const REGS: usize = NUMBERS + SWAPS;
 const CMP: usize = 0;
@@ -688,8 +688,8 @@ fn main() {
             // let heuristic = new_state.iter().map(|p| instructions_needed[p]).max().unwrap();
 
             // let heuristic = 0;
-            let new_score = new_length + heuristic;
-            // let new_score = heuristic;
+            // let new_score = new_length + heuristic;
+            let new_score = heuristic;
             // score_map.insert(new_state, new_score);
 
             // let element = (new_state, new_length);
