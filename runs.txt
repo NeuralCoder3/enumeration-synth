@@ -1,0 +1,241 @@
+Visited: 8300000, Duplicate: 27392594, Cut: 498850893, Candidates: 0, Current length: 14, Time: 257.622735778s
+Visited: 8400000, Duplicate: 27775587, Cut: 505071512, Candidates: 0, Current length: 14, Time: 261.110395378s
+Visited: 8500000, Duplicate: 28164120, Cut: 511360216, Candidates: 0, Current length: 16, Time: 264.458427868s
+Visited: 8563849, Duplicate: 28354525
+Elapsed: 266.932264306s
+
+
+possible reason:
+relaxed does not work
+
+
+
+hash can't be the problem as we overapproximate
+
+
+
+
+
+Visited: 54400000, Duplicate: 210834123, Cut: 3542765330, Candidates: 0, Current length: 14, Time: 2191.001621308s
+Visited: 54500000, Duplicate: 211176469, Cut: 3549323015, Candidates: 0, Current length: 14, Time: 2207.877903735s
+Visited: 54518554, Duplicate: 211238866
+Elapsed: 2212.390225219s
+
+
+
+maybe need > MAX LENGTH
+
+Visited: 54500000, Duplicate: 211176469, Cut: 3549323015, Candidates: 0, Current length: 14, Time: 2424.046519279s
+Visited: 54518554, Duplicate: 211238866
+Elapsed: 2426.034546706s
+
+
+with m[new_length] < oldstate
+only greedy
+
+Visited: 39100000, Duplicate: 94151289, Cut: 1997853540, Candidates: 0, Current length: 19, Time: 2273.108694512s
+Visited: 39200000, Duplicate: 94457270, Cut: 2004200524, Candidates: 0, Current length: 20, Time: 2281.149905043s
+^C
+
+
+
+
+
+
+
+a* with length+perm count + cut
+Visited: 1100000, Duplicate: 24121751, Cut: 46903076, Candidates: 0, Current length: 15, Time: 90.920591012s
+Found solution: [Permutation([1, 3, 2, 4, 2, 1, 0]), Permutation([1, 3, 2, 4, 3, 0, 1])] of length: 20
+Program:
+CMP 3 4
+MOV 5 3
+CMOVL 3 4
+CMOVL 4 5
+MOV 5 1
+CMP 1 2
+CMOVG 1 2
+CMOVG 2 5
+MOV 5 1
+CMP 1 4
+CMOVG 1 4
+CMOVL 5 4
+MOV 4 2
+CMP 2 3
+CMOVL 4 3
+CMOVL 3 2
+MOV 2 5
+CMP 2 3
+CMOVL 2 3
+CMOVL 3 5
+Visited: 1114178, Duplicate: 24391543
+Elapsed: 92.063066895s
+
+
+
+
+with perm count cut instead of old one:
+Visited: 2800000, Duplicate: 55939181, Cut: 127418699, Candidates: 0, Current length: 15, Time: 248.780424182s
+Found solution: [Permutation([2, 1, 4, 3, 1, 1, 0]), Permutation([2, 1, 4, 3, 2, 1, 0]), Permutation([2, 1, 4, 3, 3, 0, 1]), Permutation([2, 1, 4, 3, 3, 1, 0]), Permutation([2, 1, 4, 3, 4, 1, 0])] of length: 20
+Program:
+CMP 3 4
+MOV 5 3
+CMOVL 3 4
+CMOVL 4 5
+CMP 1 2
+CMOVL 5 1
+CMOVL 1 2
+CMOVL 2 5
+CMP 2 4
+CMOVG 5 2
+CMOVG 2 4
+CMOVG 4 5
+CMP 1 3
+CMOVG 5 3
+CMOVG 3 1
+CMOVG 1 5
+CMP 1 4
+CMOVG 5 1
+CMOVG 1 4
+CMOVG 4 5
+Visited: 2875943, Duplicate: 56451886
+Elapsed: 252.387035747s
+
+
+
+
+with old cut, instr need cut
+Visited: 2400000, Duplicate: 29900317, Cut: 129872225, Candidates: 0, Current length: 16, Time: 129.070271885s
+Visited: 2500000, Duplicate: 30833346, Cut: 135655878, Candidates: 0, Current length: 15, Time: 134.211509075s
+Found solution: [Permutation([1, 2, 3, 4, 2, 0, 1]), Permutation([1, 2, 3, 4, 3, 1, 0])] of length: 20
+Program:
+CMP 3 4
+MOV 5 3
+CMOVL 3 4
+CMOVL 4 5
+MOV 5 1
+CMP 2 5
+CMOVG 5 2
+CMOVL 1 2
+MOV 2 1
+CMP 1 4
+CMOVG 1 4
+CMOVL 2 4
+MOV 4 3
+CMP 3 5
+CMOVL 4 5
+CMOVL 5 3
+MOV 3 2
+CMP 2 5
+CMOVL 3 5
+CMOVG 2 5
+Visited: 2536385, Duplicate: 31158479
+Elapsed: 135.932825204s
+
+
+
+with old cut, instr need cut, goal oriented commands
+Found solution: [Permutation([1, 2, 3, 4, 1, 1, 0]), Permutation([1, 2, 3, 4, 2, 0, 1]), Permutation([1, 2, 3, 4, 3, 1, 0])] of length: 20
+Program:
+MOV 5 2
+CMP 4 5
+CMOVL 2 4
+CMOVL 4 5
+MOV 5 1
+CMP 1 3
+CMOVG 1 3
+CMOVG 3 5
+MOV 5 2
+CMP 1 2
+CMOVG 2 1
+CMOVG 1 5
+CMOVL 5 3
+CMP 3 4
+CMOVG 5 4
+CMOVG 4 3
+CMOVG 3 5
+CMP 2 3
+CMOVG 3 2
+CMOVG 2 5
+Visited: 425397, Duplicate: 2764330
+Elapsed: 16.499695551s
+
+
+
+without perm cut
+Visited: 94300000, Duplicate: 626469384, Cut: 5049620807, Candidates: 0, Current length: 15, Time: 14496.202045142s
+Found solution: [Permutation([1, 2, 3, 4, 2, 0, 1]), Permutation([1, 2, 3, 4, 3, 0, 0]), Permutation([1, 2, 3, 4, 3, 1, 0])] of length: 20
+Program:
+MOV 5 1
+CMP 1 4
+CMOVG 1 4
+CMOVG 4 5
+MOV 5 2
+CMP 2 3
+CMOVG 2 3
+CMOVG 3 5
+CMP 1 2
+CMOVG 5 1
+CMOVG 1 2
+CMOVG 2 5
+CMP 3 4
+CMOVG 5 3
+CMOVG 3 4
+CMOVG 4 5
+CMOVG 5 2
+CMP 3 5
+CMOVL 2 3
+CMOVL 3 5
+Visited: 94364666, Duplicate: 626879430
+Elapsed: 14510.908511414s
+
+
+5, cut
+Visited: 92800000, Duplicate: 236391228, Cut: 7465624726, Candidates: 0, Current length: 27, Time: 20349.86067441s
+Visited: 92900000, Duplicate: 238328482, Cut: 7471130504, Candidates: 0, Current length: 27, Time: 20389.940525427s
+Visited: 93000000, Duplicate: 240179699, Cut: 7476895268, Candidates: 0, Current length: 22, Time: 20430.473107804s
+^C
+134G	/tmp/sled-map15
+
+
+
+
+5, cut, sled
+Visited: 111200000, Duplicate: 407010241, Cut: 8891498064, Candidates: 0, Current length: 29, Time: 18956.782174424s
+Visited: 111300000, Duplicate: 407418702, Cut: 8900524220, Candidates: 0, Current length: 29, Time: 18963.616275943s
+Found solution: [Permutation([1, 2, 3, 4, 5, 2, 1, 0]), Permutation([1, 2, 3, 4, 5, 3, 1, 0]), Permutation([1, 2, 3, 4, 5, 4, 1, 0]), Permutation([1, 2, 3, 4, 5, 5, 0, 1])] of length: 33
+Program:
+MOV 6 2
+CMP 2 3
+CMOVG 2 3
+CMOVG 3 6
+MOV 6 1
+CMP 1 5
+CMOVG 1 5
+CMOVG 5 6
+MOV 6 1
+CMP 2 6
+CMOVL 1 2
+CMOVL 2 6
+MOV 6 5
+CMP 3 5
+CMOVG 5 3
+CMOVG 3 6
+MOV 6 2
+CMP 2 3
+CMOVG 2 3
+CMOVG 3 6
+MOV 6 1
+CMP 1 4
+CMOVG 1 4
+CMOVL 6 4
+CMP 3 4
+CMOVG 4 3
+CMOVG 3 6
+CMP 2 3
+CMOVG 3 2
+CMOVG 2 6
+CMP 4 5
+CMOVG 4 5
+CMOVG 5 6
+Visited: 111323354, Duplicate: 407527834
+Elapsed: 18965.281113835s
