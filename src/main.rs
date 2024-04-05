@@ -48,8 +48,9 @@ Libraries:
 // const MAX_LEN: u8 = 33;
 const NUMBERS: usize = 6;
 const MAX_LEN: u8 = 45;
+const SWAPS: usize = 2; // increases perm states from 80640 to 1330560
 // https://github.com/google-deepmind/alphadev/blob/main/sort_functions_test.cc
-const SWAPS: usize = 1;
+// const SWAPS: usize = 1;
 const REGS: usize = NUMBERS + SWAPS;
 const CMP: usize = 0;
 const MOV: usize = 1;
@@ -429,9 +430,13 @@ fn main() {
             // possible flags
             [(0,0), (0,1), (1,0), (1,1)].iter().map(|(lt,gt)| {
                 // possible swap values
-                [0; NUMBERS+1].iter().enumerate().map(|(x, _)| {
+                // for general swap count, we need {0,...,N}^swap
+                let numbers = (0..=NUMBERS_U8).collect::<Vec<u8>>();
+                itertools::repeat_n(numbers, SWAPS).multi_cartesian_product().map(|swap| {
                     let mut new_perm = init_perm.clone();
-                    new_perm[NUMBERS] = x as u8;
+                    for (i, &x) in swap.iter().enumerate() {
+                        new_perm[NUMBERS+i] = x;
+                    }
                     new_perm[REGS + 0] = *lt;
                     new_perm[REGS + 1] = *gt;
                     new_perm
@@ -471,6 +476,7 @@ fn main() {
         // for perm in swaps_needed.keys() {
         //     println!("Instructions for {:?}: {}", perm, swaps_needed[perm]);
         // }
+        println!("Computed instructions for {} permutation states", instructions_needed.len());
     }
 
 
