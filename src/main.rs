@@ -44,8 +44,10 @@ Libraries:
 // const MAX_LEN: u8 = 12;
 // const NUMBERS: usize = 4;
 // const MAX_LEN: u8 = 20;
-const NUMBERS: usize = 5;
-const MAX_LEN: u8 = 33;
+// const NUMBERS: usize = 5;
+// const MAX_LEN: u8 = 33;
+const NUMBERS: usize = 6;
+const MAX_LEN: u8 = 45;
 // https://github.com/google-deepmind/alphadev/blob/main/sort_functions_test.cc
 const SWAPS: usize = 1;
 const REGS: usize = NUMBERS + SWAPS;
@@ -493,6 +495,7 @@ fn main() {
         .stdout;
     let git_hash = String::from_utf8(git_hash).unwrap();
     println!("Git hash: {}", git_hash);
+    println!("n = {}", NUMBERS);
 
 
     // let mut length_map = HashMap::new();
