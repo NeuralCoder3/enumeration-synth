@@ -42,15 +42,15 @@ Libraries:
 
 // const NUMBERS: usize = 3;
 // const MAX_LEN: u8 = 12;
-// const NUMBERS: usize = 4;
-// const MAX_LEN: u8 = 20;
+const NUMBERS: usize = 4;
+const MAX_LEN: u8 = 20;
 // const NUMBERS: usize = 5;
 // const MAX_LEN: u8 = 33;
-const NUMBERS: usize = 6;
-const MAX_LEN: u8 = 45;
-const SWAPS: usize = 2; // increases perm states from 80640 to 1330560
+const SWAPS: usize = 1;
+// const NUMBERS: usize = 6;
+// const MAX_LEN: u8 = 45;
+// const SWAPS: usize = 2; // increases perm states from 80640 to 1330560
 // https://github.com/google-deepmind/alphadev/blob/main/sort_functions_test.cc
-// const SWAPS: usize = 1;
 const REGS: usize = NUMBERS + SWAPS;
 const CMP: usize = 0;
 const MOV: usize = 1;
@@ -502,6 +502,8 @@ fn main() {
     let git_hash = String::from_utf8(git_hash).unwrap();
     println!("Git hash: {}", git_hash);
     println!("n = {}", NUMBERS);
+    println!("max_len = {}", MAX_LEN);
+    println!("swaps = {}", SWAPS);
 
 
     // let mut length_map = HashMap::new();
@@ -564,6 +566,7 @@ fn main() {
         visited += 1;
         if visited % 100000 == 0 {
             // println!("Visited: {}, Duplicate: {}, Current length: {}", visited, duplicate, length);
+            print!("Open: {}, ", queue.len());
             print!("Visited: {}, ", visited);
             print!("Duplicate: {}, ", duplicate);
             print!("Cut: {}, ", cut);
@@ -708,7 +711,7 @@ fn main() {
                 continue;
             }
 
-            let perm_count = new_state.iter().map(|p| &p[0..NUMBERS]).unique().count();
+            let new_perm_count = new_state.iter().map(|p| &p[0..NUMBERS]).unique().count();
 
             // TODO: why is this not subsumed by a*
             // why is it so good
@@ -724,13 +727,46 @@ fn main() {
             //     min_perm_count[new_length_u] = perm_count;
             // }
 
-        if min_perm_count[min(new_length_u,new_length_u-1)]+2 < new_state.len() {
-            // works with 4
+
+                // try out cuts
+        // 16s with state length (swaps)
+        // 52s with perm count
+
+        // if min_perm_count[min(new_length_u,new_length_u-1)]+2 < new_state.len() {
+        //     // works with 4
+        //     cut += 1;
+        //     continue;
+        // } 
+        // if min_perm_count[min(new_length_u,new_length_u-1)]+2 < new_perm_count {
+        //     // works with 4
+        //     cut += 1;
+        //     continue;
+        // } 
+
+        // greedy check if there is a significant cut possible
+        // works :O in 288s (keeps queue small (at least in the beginning))
+        if min_perm_count[new_length_u] * 2 < new_perm_count {
             cut += 1;
             continue;
-        } 
-        if min_perm_count[new_length_u] > new_state.len() {
-            min_perm_count[new_length_u] = new_state.len();
+        }
+
+        // non-greedy (preservative) check if there is a significant cut possible
+        // together with above in 257s
+        if min_perm_count[min(new_length_u,new_length_u-1)] * 2 < new_perm_count {
+            cut += 1;
+            continue;
+        }
+
+
+
+
+        // for length (including swap states)
+        // if min_perm_count[new_length_u] > new_state.len() {
+        //     min_perm_count[new_length_u] = new_state.len();
+        // }
+        // only perm
+        if min_perm_count[new_length_u] > new_perm_count {
+            min_perm_count[new_length_u] = new_perm_count;
         }
 
 
@@ -762,7 +798,7 @@ fn main() {
             // // we are only interested in the unique permutations
             // // to be precise, the log of the perm count is a good heuristic for the needed swaps
             // // each swap halves the number of permutations
-            let heuristic = perm_count as u8;
+            let heuristic = new_perm_count as u8;
             // // fast log2
             // // let heuristic = std::mem::size_of::<usize>() * 8 - (heuristic.leading_zeros() as usize) - 1;
             // // we weigh the swaps with 4 as each swap takes roughly 4 instructions
