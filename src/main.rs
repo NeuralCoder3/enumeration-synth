@@ -58,15 +58,10 @@ const CMOVG: usize = 2;
 const CMOVL: usize = 3;
 const NUMBERS_U8: u8 = NUMBERS as u8;
 
-// Represents a command: (instruction, to, from)
 type Command = (usize, usize, usize);
-// type Permutation = Vec<u8>;
-// type Permutation = [u8; REGS + 2];
-type State = Vec<Permutation>;
 #[derive(Clone, Eq, PartialEq, Hash, Ord, PartialOrd, Debug, Copy)]
 struct Permutation([u8; REGS + 2]);
-// #[derive(Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
-// struct State(Vec<Permutation>);
+type State = Vec<Permutation>;
 
 use std::ops::{Index, IndexMut};
 
@@ -100,17 +95,6 @@ impl IndexMut<Range<usize>> for Permutation {
     }
 }
 
-// impl IntoIterator for State {
-//     type Item = Permutation;
-//     type IntoIter = std::vec::IntoIter<Self::Item>;
-
-//     fn into_iter(self) -> Self::IntoIter {
-//         self.0.into_iter()
-//     }
-// }
-
-
-
 // serialize, display for state
 impl std::fmt::Display for Permutation {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -137,6 +121,7 @@ fn possible_commands() -> Vec<Command> {
     commands
 }
 
+// transform a permutation according to a command
 fn apply(cmd: &Command, perm: &mut Permutation) {
     let (instr, to, from) = *cmd;
     match instr {
@@ -159,6 +144,10 @@ fn apply(cmd: &Command, perm: &mut Permutation) {
     }
 }
 
+// "undo" a command on a permutation to traverse the program backwards
+// multiple "origins" that lead to the given permutations are possible
+// returns an empty vector if the command can not result in the given permutation
+// could alternatively be computed via brute force
 fn apply_invers(cmd: &Command, perm: &Permutation) -> Vec<Permutation> {
     let (instr, to, from) = *cmd;
     match instr {
@@ -171,7 +160,7 @@ fn apply_invers(cmd: &Command, perm: &Permutation) -> Vec<Permutation> {
                 // valid flags
                 // => return state with flags as anything (would be overwritten)
                 return 
-                // 0,0; 0,1; 1,0; 1,1
+                // 0,0; 0,1; 1,0; 1,1 as possibilities for the flags
                 [(0,0), (0,1), (1,0), (1,1)].iter().map(|(lt,gt)| {
                     let mut new_perm = perm.clone();
                     new_perm[REGS + 0] = *lt;
@@ -215,6 +204,7 @@ fn apply_invers(cmd: &Command, perm: &Permutation) -> Vec<Permutation> {
     }
 }
 
+// map a command over all permutations in a state
 fn apply_all(cmd: &Command, state: &State) -> State {
     let mut new_state = Vec::new();
     for perm in state {
@@ -227,6 +217,8 @@ fn apply_all(cmd: &Command, state: &State) -> State {
     new_state
 }
 
+// check if the state can never reach a solution
+// corresponds to delete-relaxed planning check
 fn viable(state: &State) -> bool {
     for perm in state {
         for n in 1..=NUMBERS_U8 {
@@ -262,6 +254,8 @@ struct Node {
     prev: Option<Box<Node>>,
 }
 
+// a succinct representation modulo renaming for permutations
+// target for property-aware hashing
 #[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 struct PermInfo 
 {
@@ -275,6 +269,7 @@ impl Display for PermInfo {
     }
 }
 
+// vector extension (state representation) that allows to bind properties like serialization
 #[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 struct PermInfoVec(Vec<PermInfo>);
 impl std::fmt::Display for PermInfoVec {
@@ -289,6 +284,7 @@ impl std::fmt::Display for PermInfoVec {
     }
 }
 
+// parsing back to PermInfoVec
 impl From<String> for PermInfoVec {
     fn from(s: String) -> Self {
         let mut res = vec![];
@@ -314,6 +310,7 @@ let flags = flags
     }
 }
 
+// coercion between vector and structure
 impl From<Vec<PermInfo>> for PermInfoVec {
     fn from(vec: Vec<PermInfo>) -> Self {
         PermInfoVec(vec)
@@ -345,14 +342,9 @@ fn perm_positions(perm: &Permutation) -> PermInfo {
     PermInfo{perm: pos, flags}
 }
 
-// fn state_positions(state: &State) -> Vec<PermInfo> {
-// fn state_positions(state: &State) -> PermInfoVec {
-// fn state_positions(state: &State) -> State {
+// for each permutation, take out register values, concat => serializable byte array
+// we could use perm_positions for more informed hashing/equality check
 fn state_positions(state: &State) -> Vec<u8> {
-    // state.iter().map(|p| perm_positions(p)).sorted().collect()
-    // let res = state.iter().map(|p| perm_positions(p)).collect();
-    // PermInfoVec(res)
-    // state.clone()
     state.iter().flat_map(|p| p.0).collect()
 }
 
@@ -360,10 +352,6 @@ fn main() {
     let possible_cmds = possible_commands();
     let permutations: Vec<Vec<u8>> = (1..=NUMBERS_U8).permutations(NUMBERS).collect(); 
     let init_perm_count = permutations.len();
-    // only take 10 random permutations
-    // let perm_count = 6;
-    // let permutations = permutations.choose_multiple(&mut rand::thread_rng(), perm_count).cloned().collect::<Vec<_>>();
-    // let permutations = permutations.into_iter().take(perm_count).collect::<Vec<_>>();
 
     // let perm_count = 6;
     // let permutations = permutations.choose_multiple(&mut rand::thread_rng(), perm_count).cloned().collect::<Vec<_>>();
@@ -397,15 +385,6 @@ fn main() {
         if swaps_needed.len() != init_perm_count {
             panic!("Not all permutations found");
         }
-        // for perm in swaps_needed.keys() {
-        //     println!("Swaps for {:?}: {}", perm, swaps_needed[perm]);
-        // }
-        // for perm in &permutations {
-        //     // println!("Swaps for {:?}: {}", perm, swaps_needed[&perm[..]]);
-        //     if !swaps_needed.contains_key(&perm[..]) {
-        //         panic!("Permutation {:?} not found", perm);
-        //     }
-        // }
     }
 
 
@@ -416,15 +395,10 @@ fn main() {
     let mut useful_instructions = HashMap::new();
     {
         let mut frontier = VecDeque::new();
-        // let mut init_perm :Permutation = [0; REGS + 2];
         let mut init_perm = Permutation([0; REGS + 2]);
-        // let mut init_perm : Rc<Permutation> = Rc::new([0; REGS + 2]);
-        // 0..NUMBERS -> [1,2,..,NUMBERS]
         for (i, x) in init_perm[0..NUMBERS].iter_mut().enumerate() {
             *x = (i+1) as u8;
         }
-        // frontier.push(init_perm);
-        // swaps_needed.insert(init_perm, 0);
         let init_perms : Vec<Permutation> = 
             // any swap and any flags
             // possible flags
@@ -448,17 +422,6 @@ fn main() {
         }
 
         let commands = possible_commands();
-        // let mut commands = vec![];
-        // for instr in &[MOV, CMOVG, CMOVL, CMP] {
-        // // for instr in &[MOV] {
-        //     for to in 0..REGS {
-        //         for from in 0..REGS {
-        //             if to != from {
-        //                 commands.push((*instr, to, from));
-        //             }
-        //         }
-        //     }
-        // }
 
         while let Some(perm) = frontier.pop_front() {
             let instructions = instructions_needed[&perm];
@@ -473,17 +436,13 @@ fn main() {
                 }
             }
         }
-        // for perm in swaps_needed.keys() {
-        //     println!("Instructions for {:?}: {}", perm, swaps_needed[perm]);
-        // }
         println!("Computed instructions for {} permutation states", instructions_needed.len());
     }
 
 
     let mut queue = PriorityQueue::new();
 
-    // _CONDOR_SCRATCH_DIR or /tmp/ else
-    // find unused sled-mapX file
+    // find unused sled-mapX file in a temporary directory (_CONDOR_SCRATCH_DIR or /tmp/ else)
     let tmp_dir = std::env::var("_CONDOR_SCRATCH_DIR").unwrap_or("/tmp".to_string());
     let mut i = 0;
     let mut path = format!("{}/sled-map{}", tmp_dir, i);
@@ -506,22 +465,13 @@ fn main() {
     println!("swaps = {}", SWAPS);
 
 
-    // let mut length_map = HashMap::new();
-    // let length_map = sled::open("/tmp/sled-map2").unwrap();
     let length_map = sled::open(path).unwrap();
-    // let mut length_map = CompressibleMap::new(compression_params);
-    // let length_map : DiskMap<PermInfoVec, usize> = DiskMap::open_new("/tmp/db").unwrap();
-    // let score_map = HashMap::new();
 
-
+    // extend numerical permutations with register for swap and flags
+    // we use RC to avoid cloning the state
     let initial_state: Rc<State> = Rc::new(permutations
         .iter()
         .map(|p| {
-            // let mut perm = p.clone();
-            // perm.extend(&[0; SWAPS]);
-            // perm.extend(&[0, 0]); // Flags
-            // perm
-            // let mut perm = [0; REGS + 2];
             let mut perm = Permutation([0; REGS + 2]);
             for (i, &x) in p.iter().enumerate() {
                 perm[i] = x;
@@ -530,20 +480,14 @@ fn main() {
         })
         .collect());
 
-    // length_map.insert(state_positions(&initial_state).into(), 0);//.unwrap();
     length_map.insert(state_positions(&initial_state), vec![0 as u8]).unwrap();
-    // length_map.insert(state_positions(&initial_state), vec![0 as u8]);//.unwrap();
-    // length_map.insert(Rc::clone(&initial_state), 0);
 
-    // let init_element = (initial_state, 0);
-    // queue.push(&init_element, Reverse(0));
-    // queue.push(&initial_state, Reverse(0));
     let node0 = Node{cmd: (0,0,0), prev: None};
     queue.push((node0,Rc::clone(&initial_state),0 as u8), Reverse(0));
 
     let mut visited : u64 = 0;
     let mut duplicate : u64 = 0;
-    let mut candidates = 0;
+    // let mut candidates = 0;
     let mut cut : u64 = 0;
 
     // let mut file;
@@ -560,17 +504,14 @@ fn main() {
 
     let start = std::time::Instant::now();
     while let Some(((prg,state,length), _)) = queue.pop() {
-        // let length = length_map[&state];
-        // let length = 42;
 
         visited += 1;
         if visited % 100000 == 0 {
-            // println!("Visited: {}, Duplicate: {}, Current length: {}", visited, duplicate, length);
             print!("Open: {}, ", queue.len());
             print!("Visited: {}, ", visited);
             print!("Duplicate: {}, ", duplicate);
             print!("Cut: {}, ", cut);
-            print!("Candidates: {}, ", candidates);
+            // print!("Candidates: {}, ", candidates);
             print!("Current length: {}, ", length);
             print!("Time: {:?}", start.elapsed());
             println!("");
@@ -598,91 +539,9 @@ fn main() {
             break;
         }
 
-        // if length >= MAX_LEN/3 && state.len() >= init_perm_count/3 {
-        //     cut += 1;
-        //     continue;
-        // }
-
-        // if length >= MAX_LEN/2 && state.len() >= init_perm_count/2 {
-        //     cut += 1;
-        //     continue;
-        // }
-        // if length == 6 && state.len() >= init_perm_count-2 {
-        //     cut += 1;
-        //     continue;
-        // }
-
-
-        // if min_perm_count[length] < state.len() {
-        //     // TODO: too strict? => yes
-        //     cut += 1;
-        //     continue;
-        // } else 
-        // if min_perm_count[min(length,length-1)] < state.len() {
-            // Visited: 15900000, Duplicate: 45826464, Cut: 122872979, Candidates: 0, Current length: 7, 
-            // Visited: 15961087, Duplicate: 45826464
-            // Elapsed: 470.048455071s
-
-        
-        // let needed_instructions = state.iter().map(|p| instructions_needed.get(p).unwrap()).max().unwrap();
-        // if needed_instructions + length >= MAX_LEN {
-        //     cut += 1;
-        //     continue;
-        // }
-
-        // if min_perm_count[min(length,length-1)]+2 < state.len() {
-        //     // works with 4
-        //     cut += 1;
-        //     continue;
-        // } else 
-        // if min_perm_count[length] > state.len() {
-        //     min_perm_count[length] = state.len();
-        // }
-        
-        
-        // if length == 15 {
-        // //     println!("Length 15: {:?}", state);
-        // //     break;
-        //     // append state to file
-        //     // #[cfg(feature = "store-canidates")]
-        //     {
-        //     let state_str = format!("{:?}\n", state);
-        //     file.write_all(state_str.as_bytes()).unwrap();
-        //     }
-        //     candidates += 1;
-        //     continue;
-        // }
-
         if length >= MAX_LEN {
             continue;
         }
-
-        // let successors =
-        //     possible_cmds
-        //     .iter()
-        //     .filter_map(|cmd| {
-        //         let new_state = apply_all(cmd, &state);
-
-        //         if !viable(&new_state) {
-        //             return None;
-        //         }
-        //         Some(new_state)
-        //     })
-        //     .collect::<Vec<_>>();
-        // for new_state in successors {
-        //     let eq_repr = state_positions(&new_state);
-        //     if length_map.contains_key(&eq_repr) {
-        //         continue;
-        //     }
-
-        //     let new_length = length + 1;
-        //     let new_score = new_length + 0; // heuristic
-
-        //     length_map.insert(new_state, new_length);
-        //     score_map.insert(new_state, new_score);
-
-        //     queue.push(new_state, Reverse(new_score));
-        // }
 
         let prev_box = Some(Box::new(prg));
 
@@ -699,7 +558,6 @@ fn main() {
             let new_length = length + 1;
 
             if !viable(&new_state) {
-                // duplicate += 1;
                 cut += 1;
                 continue;
             }
@@ -716,16 +574,8 @@ fn main() {
             // TODO: why is this not subsumed by a*
             // why is it so good
             // why is it valid
+
             let new_length_u = new_length as usize;
-            // // if min_perm_count[min(new_length_u,new_length_u-1)]+2 < perm_count {
-            // if min_perm_count[length as usize]+2 < perm_count {
-            //     // works with 4
-            //     cut += 1;
-            //     continue;
-            // } 
-            // if min_perm_count[new_length_u] > perm_count {
-            //     min_perm_count[new_length_u] = perm_count;
-            // }
 
 
                 // try out cuts
@@ -745,17 +595,17 @@ fn main() {
 
         // greedy check if there is a significant cut possible
         // works :O in 288s (keeps queue small (at least in the beginning))
-        if min_perm_count[new_length_u] * 2 < new_perm_count {
-            cut += 1;
-            continue;
-        }
+        // if min_perm_count[new_length_u] * 2 < new_perm_count {
+        //     cut += 1;
+        //     continue;
+        // }
 
         // non-greedy (preservative) check if there is a significant cut possible
         // together with above in 257s
-        if min_perm_count[min(new_length_u,new_length_u-1)] * 2 < new_perm_count {
-            cut += 1;
-            continue;
-        }
+        // if min_perm_count[min(new_length_u,new_length_u-1)] * 2 < new_perm_count {
+        //     cut += 1;
+        //     continue;
+        // }
 
 
 
@@ -772,64 +622,34 @@ fn main() {
 
             // if already found with smaller length, skip
             let state_repr = state_positions(&new_state);
-            // let state_repr = state_positions(&new_state).into();
-            // let state_repr = new_state;
-            // if let Some(&old_length) = length_map.get(&state_repr) {
             if let Some(old_length_vec) = length_map.get(&state_repr).unwrap() {
-            // if let Some(old_length_vec) = length_map.get(&state_repr) {
                 let old_length = old_length_vec[0];
-            // if let Ok(old_length) = length_map.get(&state_repr) {
-            // if let Some(&old_length) = length_map.get(&*new_state) {
-            // if let Some(&old_length) = length_map.get(&new_state) {
                 if old_length <= new_length {
                     duplicate += 1;
                     continue;
                 }
             }
-            // length_map.insert(state_repr, new_length);//.unwrap();
             length_map.insert(state_repr, vec![new_length]).unwrap();
-            // length_map.insert(state_repr, vec![new_length]);//.unwrap();
-            // length_map.insert(Rc::clone(&new_state), new_length);
-            // length of state as heuristic
-            // let heuristic = new_state.len();
+
+            /*
+                For the heuristic, we could:
+                - use the number of unique permutations remaining
+                - use the number of unique register states remaining (permutations with flags and swaps)
+                - the number of required swaps (roughly log of permutation count as each swap roughly halves the permutation count)
+                - weight the swap count with 4 for rough instruction count
+                - use the precomputed swap count (cayley distance)
+                - use the number of instructions needed per permutation (precomputed -- relaxed plan ignoring dependencies)
+             */
 
 
-            // // unique permutations in 0..NUMBERS
-            // // we are only interested in the unique permutations
-            // // to be precise, the log of the perm count is a good heuristic for the needed swaps
-            // // each swap halves the number of permutations
             let heuristic = new_perm_count as u8;
-            // // fast log2
-            // // let heuristic = std::mem::size_of::<usize>() * 8 - (heuristic.leading_zeros() as usize) - 1;
-            // // we weigh the swaps with 4 as each swap takes roughly 4 instructions
-            // let heuristic = 4*heuristic;
-
-
-            // max of needed swaps over all permutations
-            // for p in new_state.iter() {
-            //     if !swaps_needed.contains_key(&p[0..NUMBERS]) {
-            //         panic!("Permutation {:?} not found", &p[0..NUMBERS]);
-            //     }
-            // }
-            // let heuristic = new_state.iter().map(|p| swaps_needed[&(p[0..NUMBERS])]).max().unwrap();
-            // let heuristic = new_state.iter().map(|p| swaps_needed.get(&p[0..NUMBERS]).unwrap_or(&2)).max().unwrap();
-            // let heuristic = new_state.iter().map(|p| swaps_needed.get(&p[0..NUMBERS]).unwrap_or(&1)).max().unwrap();
-            // let heuristic = 4*new_state.iter().map(|p| swaps_needed.get(&p[0..NUMBERS]).unwrap_or(&1)).sum::<usize>();
-            // let heuristic = new_state.iter().map(|p| swaps_needed.get(&p[0..NUMBERS]).unwrap_or(&1)).sum::<usize>();
-
             // try with instruction heuristic instead
             // let heuristic = new_state.iter().map(|p| instructions_needed[p]).max().unwrap();
-
             // let heuristic = 0;
-            let new_score = new_length + heuristic;
-            // let new_score = heuristic;
-            // score_map.insert(new_state, new_score);
 
-            // let element = (new_state, new_length);
-            // queue.push(&element, Reverse(new_score));
-            // queue.push(&new_state, Reverse(new_score));
+            let new_score = new_length + heuristic;
+            // we can use A* (f+h) or Dijkstra (f) or greedy (h)
             let prg = Node{cmd: *cmd, prev: prev_box.clone()};
-            // queue.push((Rc::clone(&new_state),new_length), Reverse(new_score));
             queue.push((prg,Rc::clone(&new_state),new_length), Reverse(new_score));
         }
     }
