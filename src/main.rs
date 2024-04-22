@@ -40,10 +40,11 @@ Libraries:
 // use compressible_map::CompressibleMap;
 // use diskmap::DiskMap;
 
-// const NUMBERS: usize = 3;
-// const MAX_LEN: u8 = 12;
-const NUMBERS: usize = 4;
-const MAX_LEN: u8 = 20;
+const NUMBERS: usize = 3;
+const MAX_LEN: u8 = 11;
+// const NUMBERS: usize = 4;
+// const MAX_LEN: u8 = 20;
+// const MAX_LEN: u8 = 19; // impossible
 // const NUMBERS: usize = 5;
 // const MAX_LEN: u8 = 33;
 const SWAPS: usize = 1;
@@ -539,6 +540,7 @@ fn main() {
             break;
         }
 
+        // superseeded by check below => already do not insert into queue
         if length >= MAX_LEN {
             continue;
         }
@@ -580,7 +582,7 @@ fn main() {
 
                 // try out cuts
         // 16s with state length (swaps)
-        // 52s with perm count
+        // 52s with perm count (without heuristic: 492s)
 
         // if min_perm_count[min(new_length_u,new_length_u-1)]+2 < new_state.len() {
         //     // works with 4
@@ -639,6 +641,8 @@ fn main() {
                 - weight the swap count with 4 for rough instruction count
                 - use the precomputed swap count (cayley distance)
                 - use the number of instructions needed per permutation (precomputed -- relaxed plan ignoring dependencies)
+
+                However, these seem to be slower (or not much faster) than the permutation count heuristic
              */
 
 
