@@ -40,10 +40,10 @@ Libraries:
 // use compressible_map::CompressibleMap;
 // use diskmap::DiskMap;
 
-const NUMBERS: usize = 3;
-const MAX_LEN: u8 = 11;
-// const NUMBERS: usize = 4;
-// const MAX_LEN: u8 = 20;
+// const NUMBERS: usize = 3;
+// const MAX_LEN: u8 = 11;
+const NUMBERS: usize = 4;
+const MAX_LEN: u8 = 20;
 // const MAX_LEN: u8 = 19; // impossible
 // const NUMBERS: usize = 5;
 // const MAX_LEN: u8 = 33;
@@ -533,19 +533,22 @@ fn main() {
         // but all effects will eventually be overwritten
         // only happens with heuristic
         // but heuristic is useful overall
+        // for only one solution we could cut for <= if the = case is another predecessor
         // TODO: possible solution: keep track of queue, store length separately
-        // let state_repr = state_positions(&state);
-        // if let Some(state_len_vec) = length_map.get(&state_repr).unwrap() {
-        //     if state_len_vec[0] < length {
-        //         duplicate += 1;
-        //         continue;
-        //     }
-        // }
+        let state_repr = state_positions(&state);
+        if let Some(state_len_vec) = length_map.get(&state_repr).unwrap() {
+            if state_len_vec[0] < length {
+                duplicate += 1;
+                continue;
+            }
+        }
 
 
         if state.iter().all(|p| p[0..NUMBERS] == state[0][0..NUMBERS]) {
-            println!("Found solution: {:?} of length: {}", state, length);
-
+            // println!("Found solution: {:?} of length: {}", state, length);
+            if solutions.len() == 0 {
+                println!("Found solution: {:?} of length: {}", state, length);
+            }
 
             // reconstruct program
             let mut prg = prg;
@@ -619,25 +622,25 @@ fn main() {
         //     cut += 1;
         //     continue;
         // } 
-        // if min_perm_count[min(new_length_u,new_length_u-1)]+2 < new_perm_count {
-        //     // works with 4
-        //     cut += 1;
-        //     continue;
-        // } 
+        if min_perm_count[min(new_length_u,new_length_u-1)]+2 < new_perm_count {
+            // works with 4
+            cut += 1;
+            continue;
+        } 
 
         // greedy check if there is a significant cut possible
         // works :O in 288s (keeps queue small (at least in the beginning))
-        // if min_perm_count[new_length_u] * 2 < new_perm_count {
-        //     cut += 1;
-        //     continue;
-        // }
+        if min_perm_count[new_length_u] * 2 < new_perm_count {
+            cut += 1;
+            continue;
+        }
 
         // non-greedy (preservative) check if there is a significant cut possible
         // together with above in 257s
-        // if min_perm_count[min(new_length_u,new_length_u-1)] * 2 < new_perm_count {
-        //     cut += 1;
-        //     continue;
-        // }
+        if min_perm_count[min(new_length_u,new_length_u-1)] * 2 < new_perm_count {
+            cut += 1;
+            continue;
+        }
 
 
 
@@ -656,7 +659,11 @@ fn main() {
             let state_repr = state_positions(&new_state);
             if let Some(old_length_vec) = length_map.get(&state_repr).unwrap() {
                 let old_length = old_length_vec[0];
-                if old_length <= new_length {
+                // <= is much faster and valid to find one solution
+                // with <= we find 18 solutions for n=3 (in 4s)
+                // <, we find 1642 solutions for n=3 (in 38s)
+                // if old_length <= new_length { //      solutions_min
+                if old_length < new_length {
                     duplicate += 1;
                     continue;
                 }else {
@@ -699,6 +706,19 @@ fn main() {
     // }
 
     println!("Found {} solutions", solutions.len());
+    // write solutions to SOLUTION_DIR || ./solutions
+    let solution_dir = std::env::var("SOLUTION_DIR").unwrap_or("solutions".to_string());
+    // subdir NUMBER_MAXLEN
+    // for each solution one file
+    let subdir = format!("{}/{}_{}", solution_dir, NUMBERS, MAX_LEN);
+    std::fs::create_dir_all(&subdir).unwrap();
+    for (i, solution) in solutions.iter().enumerate() {
+        let file = format!("{}/solution_{}.txt", subdir, i);
+        let mut file = std::fs::File::create(file).unwrap();
+        for cmd in solution {
+            writeln!(file, "{}", show_command(cmd)).unwrap();
+        }
+    }
 
     println!("Visited: {}, Duplicate: {}", visited, duplicate);
     println!("Elapsed: {:?}", start.elapsed());
