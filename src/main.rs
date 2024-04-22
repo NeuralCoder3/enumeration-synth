@@ -501,6 +501,13 @@ fn main() {
     //     file = std::fs::File::create(tmp_file).unwrap();
     // }
 
+    // list of previous states to reconstruct program
+    // (we want all (shortest) predecessors hence a single one together with the state in the queue is (probably) not enough)
+    // TODO: check if we get lists of length > 1
+    // let mut prev_states : HashMap<Vec<u8>, Vec<Node>> = HashMap::new();
+
+    let mut solutions = vec![];
+
     let mut min_perm_count = [init_perm_count; (MAX_LEN as usize)+1];
 
     let start = std::time::Instant::now();
@@ -520,6 +527,22 @@ fn main() {
             // file.sync_all().unwrap();
         }
 
+        // test twice => in between another state might have reopened it better
+        // => ignore in this case
+        // we do not directly catch propagation
+        // but all effects will eventually be overwritten
+        // only happens with heuristic
+        // but heuristic is useful overall
+        // TODO: possible solution: keep track of queue, store length separately
+        // let state_repr = state_positions(&state);
+        // if let Some(state_len_vec) = length_map.get(&state_repr).unwrap() {
+        //     if state_len_vec[0] < length {
+        //         duplicate += 1;
+        //         continue;
+        //     }
+        // }
+
+
         if state.iter().all(|p| p[0..NUMBERS] == state[0][0..NUMBERS]) {
             println!("Found solution: {:?} of length: {}", state, length);
 
@@ -532,12 +555,16 @@ fn main() {
                 prg = *node;
             }
             cmds.reverse();
-            println!("Program:");
-            for cmd in cmds {
-                println!("{}", show_command(&cmd));
-            }
 
-            break;
+            solutions.push(cmds);
+            continue;
+
+            // println!("Program:");
+            // for cmd in cmds {
+            //     println!("{}", show_command(&cmd));
+            // }
+
+            // break;
         }
 
         // superseeded by check below => already do not insert into queue
@@ -584,6 +611,9 @@ fn main() {
         // 16s with state length (swaps)
         // 52s with perm count (without heuristic: 492s)
 
+        // the cuts do not change the (naiv) solution count for n=3 
+        // we still find 18 solutions
+
         // if min_perm_count[min(new_length_u,new_length_u-1)]+2 < new_state.len() {
         //     // works with 4
         //     cut += 1;
@@ -629,6 +659,9 @@ fn main() {
                 if old_length <= new_length {
                     duplicate += 1;
                     continue;
+                }else {
+                    // TODO: do something
+                    // println!("Found shorter path: {} -> {}", old_length, new_length);
                 }
             }
             length_map.insert(state_repr, vec![new_length]).unwrap();
@@ -664,6 +697,8 @@ fn main() {
     // file.sync_all().unwrap();
     // drop(file);
     // }
+
+    println!("Found {} solutions", solutions.len());
 
     println!("Visited: {}, Duplicate: {}", visited, duplicate);
     println!("Elapsed: {:?}", start.elapsed());
