@@ -440,7 +440,7 @@ fn main() {
         println!("Computed instructions for {} permutation states", instructions_needed.len());
     }
 
-
+    // TODO: proxy queue via sled hashmap for all solution cases (large memory concumption 25GB (65 million states peak for n=4 with all solutions and cut))
     let mut queue = PriorityQueue::new();
 
     // find unused sled-mapX file in a temporary directory (_CONDOR_SCRATCH_DIR or /tmp/ else)
@@ -506,7 +506,14 @@ fn main() {
     // TODO: check if we get lists of length > 1
     // let mut prev_states : HashMap<Vec<u8>, Vec<Node>> = HashMap::new();
 
-    let mut solutions = vec![];
+    // let mut solutions = vec![];
+    let mut solution_count = 0;
+    let solution_dir = std::env::var("SOLUTION_DIR").ok();
+    let subdir = solution_dir.map(|dir| format!("{}/{}_{}", dir, NUMBERS, MAX_LEN));
+    if let Some(subdir) = &subdir {
+        std::fs::create_dir_all(&subdir).unwrap();
+    }
+
 
     let mut min_perm_count = [init_perm_count; (MAX_LEN as usize)+1];
 
@@ -546,8 +553,10 @@ fn main() {
 
         if state.iter().all(|p| p[0..NUMBERS] == state[0][0..NUMBERS]) {
             // println!("Found solution: {:?} of length: {}", state, length);
-            if solutions.len() == 0 {
-                println!("Found solution: {:?} of length: {}", state, length);
+            if solution_count == 0 {
+                println!("Found first solution: {:?} of length: {}", state, length);
+                print!("Time: {:?}", start.elapsed());
+                println!("");
             }
 
             // reconstruct program
@@ -559,13 +568,24 @@ fn main() {
             }
             cmds.reverse();
 
-            solutions.push(cmds);
+            // solutions.push(cmds);
+            solution_count += 1;
+            if let Some(subdir) = &subdir {
+                let file = format!("{}/solution_{}.txt", subdir, solution_count-1);
+                let mut file = std::fs::File::create(file).unwrap();
+                for cmd in &cmds {
+                    writeln!(file, "{}", show_command(cmd)).unwrap();
+                }
+            }else {
+                // if we do not store solutions, we are just interested in one
+                println!("Program:");
+                for cmd in cmds {
+                    println!("{}", show_command(&cmd));
+                }
+                break;
+            }
             continue;
 
-            // println!("Program:");
-            // for cmd in cmds {
-            //     println!("{}", show_command(&cmd));
-            // }
 
             // break;
         }
@@ -705,20 +725,7 @@ fn main() {
     // drop(file);
     // }
 
-    println!("Found {} solutions", solutions.len());
-    // write solutions to SOLUTION_DIR || ./solutions
-    let solution_dir = std::env::var("SOLUTION_DIR").unwrap_or("solutions".to_string());
-    // subdir NUMBER_MAXLEN
-    // for each solution one file
-    let subdir = format!("{}/{}_{}", solution_dir, NUMBERS, MAX_LEN);
-    std::fs::create_dir_all(&subdir).unwrap();
-    for (i, solution) in solutions.iter().enumerate() {
-        let file = format!("{}/solution_{}.txt", subdir, i);
-        let mut file = std::fs::File::create(file).unwrap();
-        for cmd in solution {
-            writeln!(file, "{}", show_command(cmd)).unwrap();
-        }
-    }
+    println!("Found {} solutions", solution_count);
 
     println!("Visited: {}, Duplicate: {}", visited, duplicate);
     println!("Elapsed: {:?}", start.elapsed());
