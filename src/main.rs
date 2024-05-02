@@ -528,6 +528,9 @@ fn main() {
             print!("Cut: {}, ", cut);
             // print!("Candidates: {}, ", candidates);
             print!("Current length: {}, ", length);
+            if subdir.is_some() {
+                print!("Solutions: {}, ", solution_count);
+            }
             print!("Time: {:?}", start.elapsed());
             println!("");
             // #[cfg(feature = "store-canidates")]
