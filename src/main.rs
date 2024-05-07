@@ -645,11 +645,11 @@ fn main() {
         //     cut += 1;
         //     continue;
         // } 
-        if min_perm_count[min(new_length_u,new_length_u-1)]+2 < new_perm_count {
-            // works with 4
-            cut += 1;
-            continue;
-        } 
+        // if min_perm_count[min(new_length_u,new_length_u-1)]+2 < new_perm_count {
+        //     // works with 4
+        //     cut += 1;
+        //     continue;
+        // } 
 
         // greedy check if there is a significant cut possible
         // works :O in 288s (keeps queue small (at least in the beginning))
@@ -660,7 +660,8 @@ fn main() {
 
         // non-greedy (preservative) check if there is a significant cut possible
         // together with above in 257s
-        if min_perm_count[min(new_length_u,new_length_u-1)] * 2 < new_perm_count {
+        // if min_perm_count[min(new_length_u,new_length_u-1)] * 2 < new_perm_count {
+        if min_perm_count[length as usize] * 2 < new_perm_count {
             cut += 1;
             continue;
         }
@@ -686,7 +687,7 @@ fn main() {
                 // with <= we find 18 solutions for n=3 (in 4s)
                 // <, we find 1642 solutions for n=3 (in 38s)
                 // if old_length <= new_length { //      solutions_min
-                if old_length < new_length {
+                if old_length < new_length { // solutions_all
                     duplicate += 1;
                     continue;
                 }else {
@@ -809,3 +810,12 @@ fn main() {
 // Visited: 3100000, Duplicate: 9377953, Cut: 22331993, Candidates: 0, Current length: 6, 
 // Visited: 3142624, Duplicate: 9377953
 // Elapsed: 48.940570828s
+
+
+
+
+
+// SOLUTION_DIR=solutions_all_cut_2 _CONDOR_SCRATCH_DIR=./tmp2/ cargo run --release | tee -a all_cut_4_log_4.txt
+// SOLUTION_DIR=solutions_all_safecut _CONDOR_SCRATCH_DIR=./tmp2/ cargo run --release | tee -a all_safecut_4_log_4.txt
+// du -c -d 2 sol*
+// du -c -d 2 --separate-dirs sol* | sort -n
