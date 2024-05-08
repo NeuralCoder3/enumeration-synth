@@ -647,11 +647,11 @@ fn main() {
         //     cut += 1;
         //     continue;
         // } 
-        // if min_perm_count[min(new_length_u,new_length_u-1)]+2 < new_perm_count {
-        //     // works with 4
-        //     cut += 1;
-        //     continue;
-        // } 
+        if min_perm_count[min(new_length_u,new_length_u-1)]+2 < new_perm_count {
+            // works with 4
+            cut += 1;
+            continue;
+        } 
 
         // greedy check if there is a significant cut possible
         // works :O in 288s (keeps queue small (at least in the beginning))
@@ -688,8 +688,8 @@ fn main() {
                 // <= is much faster and valid to find one solution
                 // with <= we find 18 solutions for n=3 (in 4s)
                 // <, we find 1642 solutions for n=3 (in 38s)
-                // if old_length <= new_length { //      solutions_min
-                if old_length < new_length { // solutions_all
+                if old_length <= new_length { //      solutions_min
+                // if old_length < new_length { // solutions_all
                     duplicate += 1;
                     continue;
                 }else {
