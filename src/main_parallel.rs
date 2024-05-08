@@ -228,11 +228,11 @@ fn main() {
 
     // length_map.insert(state_positions(&initial_state), vec![0 as u8]).unwrap();
 
-    let node0 = Node{cmd: (0,0,0), prev: None};
+    // let node0 = Node{cmd: (0,0,0), prev: None};
 
     let mut visited : u64 = 0;
     let mut duplicate : u64 = 0;
-    let mut cut : u64 = 0;
+    // let mut cut : u64 = 0;
 
     let mut min_perm_count = [init_perm_count; (MAX_LEN as usize)+1];
 
@@ -245,8 +245,12 @@ fn main() {
 
     let mut length = 0;
     while length<MAX_LEN {
-        println!("Length: {}", length);
-        println!("Frontier: {}", frontier.len());
+        print!("Length: {}, ", length);
+        print!("Frontier: {}, ", frontier.len());
+        print!("Seen: {}, ", seen.len());
+        print!("Elapsed: {:?}, ", start.elapsed());
+        println!();
+
 
         min_perm_count[length as usize] = 
             frontier.iter()
@@ -255,6 +259,21 @@ fn main() {
             )
             .min()
             .unwrap();
+
+        // check for solutions
+        let found = 
+            frontier.iter().any(|state| 
+                state.iter().all(|p| p[0..NUMBERS] == state[0][0..NUMBERS])
+            );
+        if found {
+            println!("Found: solution of length: {}", length);
+            let elapsed = start.elapsed();
+            println!("Elapsed: {:?}", elapsed);
+            // solution_lengths.lock().unwrap().push(length);
+            // exit program
+            std::process::exit(0);
+            // return vec![state];
+        }
 
         visited += frontier.len() as u64;
         let new_frontier =
@@ -266,16 +285,6 @@ fn main() {
                 // if visited.get() % 1000 == 0 {
                 //     println!("Visited: {}, Duplicate: {} (length: {})", visited.get(), duplicate.get(), length);
                 // }
-                if state.iter().all(|p| p[0..NUMBERS] == state[0][0..NUMBERS]) {
-                    println!("Found: {:?} of length: {}", state, length);
-                    let elapsed = start.elapsed();
-                    println!("Elapsed: {:?}", elapsed);
-                    // solution_lengths.lock().unwrap().push(length);
-                    // exit program
-                    println!("a bit older: Visited: {}, Duplicate: {}", visited, duplicate);
-                    std::process::exit(0);
-                    // return vec![state];
-                }
 
                 possible_cmds
                     .iter()

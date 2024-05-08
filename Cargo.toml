@@ -2,6 +2,7 @@
 name = "compute_vec"
 version = "0.1.0"
 edition = "2021"
+default-run = "compute_vec"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -21,3 +22,11 @@ sled = "0.34.7"
 store-candidates = []
 
 default = ["store-candidates"]
+
+[[bin]]
+name = "compute_vec"
+path = "src/main_astar.rs"
+
+[[bin]]
+name = "compute_vec_parallel"
+path = "src/main_parallel.rs"

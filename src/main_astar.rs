@@ -512,6 +512,9 @@ fn main() {
     let subdir = solution_dir.map(|dir| format!("{}/{}_{}", dir, NUMBERS, MAX_LEN));
     if let Some(subdir) = &subdir {
         std::fs::create_dir_all(&subdir).unwrap();
+        println!("Storing solutions in: {}", subdir);
+    }else {
+        println!("Not storing solutions");
     }
 
 
@@ -519,7 +522,6 @@ fn main() {
 
     let start = std::time::Instant::now();
     while let Some(((prg,state,length), _)) = queue.pop() {
-
         visited += 1;
         if visited % 100000 == 0 {
             print!("Open: {}, ", queue.len());
