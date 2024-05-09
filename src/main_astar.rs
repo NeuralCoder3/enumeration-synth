@@ -42,11 +42,11 @@ Libraries:
 
 // const NUMBERS: usize = 3;
 // const MAX_LEN: u8 = 11;
-const NUMBERS: usize = 4;
-const MAX_LEN: u8 = 20;
+// const NUMBERS: usize = 4;
+// const MAX_LEN: u8 = 20;
 // const MAX_LEN: u8 = 19; // impossible
-// const NUMBERS: usize = 5;
-// const MAX_LEN: u8 = 33;
+const NUMBERS: usize = 5;
+const MAX_LEN: u8 = 33;
 const SWAPS: usize = 1;
 // const NUMBERS: usize = 6;
 // const MAX_LEN: u8 = 45;
@@ -619,6 +619,8 @@ fn main() {
                 continue;
             }
 
+            // TODO: move solution check here?
+
             // cut before insertion to save memory (and have value ready for heuristics)
             let needed_instructions = new_state.iter().map(|p| instructions_needed.get(p).unwrap()).max().unwrap();
             if needed_instructions + new_length > MAX_LEN {
@@ -647,27 +649,38 @@ fn main() {
         //     cut += 1;
         //     continue;
         // } 
-        if min_perm_count[min(new_length_u,new_length_u-1)]+2 < new_perm_count {
-            // works with 4
-            cut += 1;
-            continue;
-        } 
+        // if min_perm_count[min(new_length_u,new_length_u-1)]+2 < new_perm_count {
+        //     // works with 4
+        //     cut += 1;
+        //     continue;
+        // } 
 
         // greedy check if there is a significant cut possible
         // works :O in 288s (keeps queue small (at least in the beginning))
-        if min_perm_count[new_length_u] * 2 < new_perm_count {
-            cut += 1;
-            continue;
-        }
+        // if min_perm_count[new_length_u] * 2 < new_perm_count {
+        //     cut += 1;
+        //     continue;
+        // }
 
         // non-greedy (preservative) check if there is a significant cut possible
         // together with above in 257s
         // if min_perm_count[min(new_length_u,new_length_u-1)] * 2 < new_perm_count {
-        if min_perm_count[length as usize] * 2 < new_perm_count {
+        // if min_perm_count[length as usize] * 2 < new_perm_count {
+        //     cut += 1;
+        //     continue;
+        // }
+
+        // n = 4
+        // +2    
+        // *2    > 100s
+        // *3/2  78s
+        // *5/4  4.88s
+        // *1    2.22s  (689s for n=5)
+        // *4    > 140s
+        if min_perm_count[length as usize] < new_perm_count {
             cut += 1;
             continue;
         }
-
 
 
 
@@ -821,3 +834,10 @@ fn main() {
 // SOLUTION_DIR=solutions_all_safecut _CONDOR_SCRATCH_DIR=./tmp2/ cargo run --release | tee -a all_safecut_4_log_4.txt
 // du -c -d 2 sol*
 // du -c -d 2 --separate-dirs sol* | sort -n
+
+
+
+
+// for cut *1
+// Visited: 5696948, Duplicate: 15276202
+// Elapsed: 688.811328372s

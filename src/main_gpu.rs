@@ -309,35 +309,36 @@ fn main() {
                 // instead of sort use sorted of idx of perms (via trie?)
 
                 // reconstruct frontier from state_array
-                state_array
-                    .chunks_exact(state_size)
-                    .map(|s| {
-                        s.chunks_exact(permutation_size)
-                            .map(|p| {
-                                // let mut perm = Permutation([0; REGS + 2]);
-                                // for (i, &x) in p.iter().enumerate() {
-                                //     perm[i] = x;
-                                // }
-                                // perm
+                
+                // state_array
+                //     .chunks_exact(state_size)
+                //     .map(|s| {
+                //         s.chunks_exact(permutation_size)
+                //             .map(|p| {
+                //                 // let mut perm = Permutation([0; REGS + 2]);
+                //                 // for (i, &x) in p.iter().enumerate() {
+                //                 //     perm[i] = x;
+                //                 // }
+                //                 // perm
 
-                                // create permutation out of p directly
-                                let perm = Permutation(p.try_into().unwrap());
-                                perm
-                            })
-                            .collect::<Vec<_>>()
-                    })
-                    .filter_map(|mut state| {
-                        state.sort();
-                        if !viable(&state) {
-                            return None;
-                        }
-                        if seen.contains(&state) {
-                            return None;
-                        }
-                        Some(state)
-                    })
-                    // .collect::<Vec<_>>()
-                    .for_each(drop);
+                //                 // create permutation out of p directly
+                //                 let perm = Permutation(p.try_into().unwrap());
+                //                 perm
+                //             })
+                //             .collect::<Vec<_>>()
+                //     })
+                //     .filter_map(|mut state| {
+                //         state.sort();
+                //         if !viable(&state) {
+                //             return None;
+                //         }
+                //         if seen.contains(&state) {
+                //             return None;
+                //         }
+                //         Some(state)
+                //     })
+                //     // .collect::<Vec<_>>()
+                //     .for_each(drop);
 
 // Visited: 5383230, Duplicate: 9442652 (length: 10)
 // Found: solution of length: 11
