@@ -42,11 +42,11 @@ Libraries:
 
 // const NUMBERS: usize = 3;
 // const MAX_LEN: u8 = 11;
-// const NUMBERS: usize = 4;
-// const MAX_LEN: u8 = 20;
+const NUMBERS: usize = 4;
+const MAX_LEN: u8 = 20;
 // const MAX_LEN: u8 = 19; // impossible
-const NUMBERS: usize = 5;
-const MAX_LEN: u8 = 33;
+// const NUMBERS: usize = 5;
+// const MAX_LEN: u8 = 33;
 const SWAPS: usize = 1;
 // const NUMBERS: usize = 6;
 // const MAX_LEN: u8 = 45;
@@ -677,7 +677,14 @@ fn main() {
         // *5/4  4.88s
         // *1    2.22s  (689s for n=5)
         // *4    > 140s
-        if min_perm_count[length as usize] < new_perm_count {
+        // if min_perm_count[length as usize] < new_perm_count {
+        //     cut += 1;
+        //     continue;
+        // }
+
+
+        // safe cut (keeps 1642 for n=3)
+        if 2*min_perm_count[length as usize] < new_perm_count {
             cut += 1;
             continue;
         }
@@ -701,8 +708,8 @@ fn main() {
                 // <= is much faster and valid to find one solution
                 // with <= we find 18 solutions for n=3 (in 4s)
                 // <, we find 1642 solutions for n=3 (in 38s)
-                if old_length <= new_length { //      solutions_min
-                // if old_length < new_length { // solutions_all
+                // if old_length <= new_length { //      solutions_min
+                if old_length < new_length { // solutions_all
                     duplicate += 1;
                     continue;
                 }else {

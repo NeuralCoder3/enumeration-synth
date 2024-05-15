@@ -3,6 +3,7 @@ use rand::seq::SliceRandom;
 use rayon::iter::IntoParallelIterator as _;
 use rayon::iter::IntoParallelRefIterator;
 use rayon::iter::ParallelIterator as _;
+use std::arch::x86_64::_mm256_permute4x64_epi64;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
@@ -134,15 +135,27 @@ fn apply_all(cmd: &Command, state: &State) -> State {
     new_state
 }
 
+fn viable_perm(perm: &[u8]) -> bool {
+    for n in 1..=NUMBERS_U8 {
+        if !perm[0..REGS].contains(&n) {
+            return false;
+        }
+    }
+    true
+}
+
 // check if the state can never reach a solution
 // corresponds to delete-relaxed planning check
 fn viable(state: &State) -> bool {
     for perm in state {
-        for n in 1..=NUMBERS_U8 {
-            if !perm[0..REGS].contains(&n) {
-                return false;
-            }
+        if !viable_perm(&perm.0) {
+            return false;
         }
+        // for n in 1..=NUMBERS_U8 {
+        //     if !perm[0..REGS].contains(&n) {
+        //         return false;
+        //     }
+        // }
     }
     true
 }
@@ -208,7 +221,8 @@ fn main() {
     println!("swaps = {}", SWAPS);
 
     // let length_map = sled::open(path).unwrap();
-    let mut seen = HashSet::new();
+    // let mut seen  : HashSet<[&u8]> = HashSet::new();
+    let seen = sled::open(path).unwrap();
 
     // extend numerical permutations with register for swap and flags
     // we use RC to avoid cloning the state
@@ -238,6 +252,7 @@ fn main() {
     // make flat
     let flat_init_state = initial_state.iter().flat_map(|p| p.0).collect::<Vec<_>>();
     let mut frontier : Vec<u8> = flat_init_state.clone();
+    println!("Initial state: {:?}", flat_init_state);
 
     let permutation_size = REGS + 2;
     let state_size = init_perm_count * permutation_size;
@@ -289,7 +304,7 @@ fn main() {
                     .program(&program)
                     .name("apply")
                     .queue(ctx.queue().clone())
-                    .global_work_size(frontier.len())
+                    .global_work_size(frontier.len() / state_size)
                     .arg(&state_buffer)
                     .arg(&command_buffer)
                     .arg(&output_buffer)
@@ -303,12 +318,58 @@ fn main() {
                 }
 
                 output_buffer.read(&mut output_array).enq().unwrap();
-                state_buffer.read(&mut frontier).enq().unwrap();
+                let mut new_frontier = vec![0; state_size * state_count];
+                state_buffer.read(&mut new_frontier).enq().unwrap();
 
                 // TODO: only operate on flat structure
                 // instead of sort use sorted of idx of perms (via trie?)
 
                 // reconstruct frontier from state_array
+
+                let new_frontier=new_frontier
+                    .chunks_exact(state_size)
+                    .filter_map(|s| {
+                        // println!("State: {:?}", s);
+                        // return Some(s.to_vec());
+                        // check viable
+                        for pi in 0..init_perm_count {
+                            let perm = &s[pi * permutation_size..(pi + 1) * permutation_size];
+                            if !viable_perm(perm) {
+                                return None;
+                            }
+                        }
+                        // return Some(s.to_vec());
+
+                        // sort perm (chunked) without copying
+                        // first chunk
+                        // then sort
+                        // then flatten
+                        // check if duplicate
+                        // else insert and keep
+                        // sorted_state 
+                        // let permutations = s.chunks_exact(permutation_size).collect::<Vec<_>>();
+                        let sorted_perms = 
+                        // s;
+                            s.chunks_exact(permutation_size)
+                            .sorted()
+                            .flatten()
+                            .copied()
+                            .collect::<Vec<_>>();
+                        // if seen.contains(&sorted_perms) {
+                        //     return None;
+                        // }
+                        if let Some(_) = seen.get(&sorted_perms).unwrap() {
+                            return None;
+                        }
+                        // seen.insert(sorted_perms, vec![0]);
+                        seen.insert(sorted_perms.clone(), vec![0]).unwrap();
+                        Some(sorted_perms)
+                        // Some(sorted_perms.iter().copied().collect::<Vec<_>>())
+                    })
+                    .flatten()
+                    .collect::<Vec<_>>();
+                // println!("Command: {} -> {}", show_command(cmd), new_frontier.len());
+                new_frontier
                 
                 // state_array
                 //     .chunks_exact(state_size)
@@ -344,30 +405,32 @@ fn main() {
 // Found: solution of length: 11
 // Elapsed: 76.619163288s
 
-
-
+// no complex struct
+// Visited: 5383230, Duplicate: 0
+// Elapsed: 185.780830764s
+// without sort long
 
 
 // Visited: 5383230, Duplicate: 9442652 (length: 10)
 // Found: solution of length: 11
 // Elapsed: 45.615414616s
 
-                frontier
-                // .iter()
-                .par_iter()
-                .filter_map(|state| {
-                    let mut new_state = apply_all(cmd, &state);
-                    new_state.sort();
-                    if !viable(&new_state) {
-                        return None;
-                    }
-                    if seen.contains(&new_state) {
-                        // duplicate += 1;
-                        return None;
-                    }
-                    Some(new_state)
-                })
-                .collect::<Vec<_>>()
+                // frontier
+                // // .iter()
+                // .par_iter()
+                // .filter_map(|state| {
+                //     let mut new_state = apply_all(cmd, &state);
+                //     new_state.sort();
+                //     if !viable(&new_state) {
+                //         return None;
+                //     }
+                //     if seen.contains(&new_state) {
+                //         // duplicate += 1;
+                //         return None;
+                //     }
+                //     Some(new_state)
+                // })
+                // .collect::<Vec<_>>()
 
             })
             .collect::<Vec<_>>();
@@ -379,7 +442,7 @@ fn main() {
         let frontier_filtered = new_frontier
             // filter seen
             .into_iter()
-            .unique()
+            // .unique()
             // .filter(|state| { return !seen.contains(state); })
             .collect::<Vec<_>>();
         duplicate += (new_frontier_length - frontier_filtered.len()) as u64;
@@ -389,21 +452,30 @@ fn main() {
         );
 
         // add all to seen
-        seen.extend(frontier_filtered.iter().cloned());
+        // seen.extend(frontier_filtered.iter().cloned());
+        // frontier_filtered.
         // if solution_lengths.lock().unwrap().len() > 0 {
         //     println!("Found: {:?} of length: {}", solution_lengths.lock().unwrap(), length);
         //     break;
         // }
         length += 1;
         frontier = frontier_filtered;
+        // convert from vec<&u8> to vec<u8>
+        // frontier = frontier_filtered.into_iter().copied().collect();
 
 
         // check for solutions
+        // let found = 
+        //     frontier.iter().any(|state| 
+        //         // state.iter().all(|p| p[0..NUMBERS] == state[0][0..NUMBERS])
+        //         state.iter().all(|p| p[0..NUMBERS] == (1..=NUMBERS_U8).collect::<Vec<_>>()
+        //     ));
         let found = 
-            frontier.iter().any(|state| 
-                // state.iter().all(|p| p[0..NUMBERS] == state[0][0..NUMBERS])
-                state.iter().all(|p| p[0..NUMBERS] == (1..=NUMBERS_U8).collect::<Vec<_>>()
-            ));
+            frontier.chunks_exact(state_size)
+            .any(|s| {
+                s.chunks_exact(permutation_size)
+                .all(|p| p[0..NUMBERS].iter().all(|&x| x == 1))
+            });
         if found {
             println!("Found: solution of length: {}", length);
             let elapsed = start.elapsed();

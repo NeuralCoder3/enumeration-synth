@@ -10,6 +10,7 @@ default-run = "compute_vec"
 compressible-map = "0.3.0"
 diskmap = "0.2.0"
 itertools = "0.12.1"
+ocl = "0.19.7"
 priority-queue = "2.0.2"
 rand = "0.8.5"
 rayon = "1.9.0"
@@ -30,3 +31,7 @@ path = "src/main_astar.rs"
 [[bin]]
 name = "compute_vec_parallel"
 path = "src/main_parallel.rs"
+
+[[bin]]
+name = "compute_vec_gpu"
+path = "src/main_gpu.rs"
