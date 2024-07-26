@@ -40,28 +40,27 @@ Libraries:
 // use compressible_map::CompressibleMap;
 // use diskmap::DiskMap;
 
-// const NUMBERS: usize = 3;
-// const MAX_LEN: u8 = 11;
+const NUMBERS: usize = 3;
+const MAX_LEN: u8 = 8;
 // const NUMBERS: usize = 4;
 // const MAX_LEN: u8 = 20;
 // const MAX_LEN: u8 = 19; // impossible
-const NUMBERS: usize = 5;
-const MAX_LEN: u8 = 33;
+// const NUMBERS: usize = 5;
+// const MAX_LEN: u8 = 33;
 const SWAPS: usize = 1;
 // const NUMBERS: usize = 6;
 // const MAX_LEN: u8 = 45;
 // const SWAPS: usize = 2; // increases perm states from 80640 to 1330560
 // https://github.com/google-deepmind/alphadev/blob/main/sort_functions_test.cc
 const REGS: usize = NUMBERS + SWAPS;
-const CMP: usize = 0;
-const MOV: usize = 1;
-const CMOVG: usize = 2;
-const CMOVL: usize = 3;
+const MOV: usize = 0; // movdqa
+const MIN: usize = 1; // pminud => compare first and second, move smaller to first
+const MAX: usize = 2;
 const NUMBERS_U8: u8 = NUMBERS as u8;
 
 type Command = (usize, usize, usize);
 #[derive(Clone, Eq, PartialEq, Hash, Ord, PartialOrd, Debug, Copy)]
-struct Permutation([u8; REGS + 2]);
+struct Permutation([u8; REGS]);
 type State = Vec<Permutation>;
 
 use std::ops::{Index, IndexMut};
@@ -105,7 +104,7 @@ impl std::fmt::Display for Permutation {
 
 fn possible_commands() -> Vec<Command> {
     let mut commands = vec![];
-    for instr in &[MOV, CMOVG, CMOVL] {
+    for instr in &[MOV, MIN, MAX] {
         for to in 0..REGS {
             for from in 0..REGS {
                 if to != from {
@@ -114,11 +113,12 @@ fn possible_commands() -> Vec<Command> {
             }
         }
     }
-    for i in 0..REGS {
-        for j in (i + 1)..REGS {
-            commands.push((CMP, i, j));
-        }
-    }
+    // TODO: min and max could be just < (like cmp)
+    // for i in 0..REGS {
+    //     for j in (i + 1)..REGS {
+    //         commands.push((CMP, i, j));
+    //     }
+    // }
     commands
 }
 
@@ -126,20 +126,16 @@ fn possible_commands() -> Vec<Command> {
 fn apply(cmd: &Command, perm: &mut Permutation) {
     let (instr, to, from) = *cmd;
     match instr {
-        CMP => {
-            perm[REGS + 0] = (perm[to] < perm[from]) as u8;
-            perm[REGS + 1] = (perm[to] > perm[from]) as u8;
-        }
+        // CMP => {
+        //     perm[REGS + 0] = (perm[to] < perm[from]) as u8;
+        //     perm[REGS + 1] = (perm[to] > perm[from]) as u8;
+        // }
         MOV => perm[to] = perm[from],
-        CMOVG => {
-            if perm[REGS + 1] == 1 {
-                perm[to] = perm[from];
-            }
+        MIN => {
+            perm[to] = perm[to].min(perm[from]);
         }
-        CMOVL => {
-            if perm[REGS + 0] == 1 {
-                perm[to] = perm[from];
-            }
+        MAX => {
+            perm[to] = perm[to].max(perm[from]);
         }
         _ => panic!("Unknown instruction"),
     }
@@ -149,61 +145,61 @@ fn apply(cmd: &Command, perm: &mut Permutation) {
 // multiple "origins" that lead to the given permutations are possible
 // returns an empty vector if the command can not result in the given permutation
 // could alternatively be computed via brute force
-fn apply_invers(cmd: &Command, perm: &Permutation) -> Vec<Permutation> {
-    let (instr, to, from) = *cmd;
-    match instr {
-        CMP => {
-            let lt_flag = perm[REGS + 0];
-            let gt_flag = perm[REGS + 1];
-            // check that flags are set correctly
-            if ((lt_flag == 0 && !(perm[to] < perm[from])) || (lt_flag == 1 && perm[to] < perm[from])) &&
-                ((gt_flag == 0 && !(perm[to] > perm[from])) || (gt_flag == 1 && perm[to] > perm[from])) {
-                // valid flags
-                // => return state with flags as anything (would be overwritten)
-                return 
-                // 0,0; 0,1; 1,0; 1,1 as possibilities for the flags
-                [(0,0), (0,1), (1,0), (1,1)].iter().map(|(lt,gt)| {
-                    let mut new_perm = perm.clone();
-                    new_perm[REGS + 0] = *lt;
-                    new_perm[REGS + 1] = *gt;
-                    new_perm
-                }).collect::<Vec<_>>();
-            }else {
-                return vec![];
-            }
-        }
-        MOV => {
-            if perm[to] != perm[from] {
-                return vec![];
-            }
-            // dest could be anything before
-            return [0;NUMBERS+1].iter().enumerate().map(|(x, _)| {
-                let mut new_perm = perm.clone();
-                new_perm[to] = x as u8;
-                new_perm
-            }).collect::<Vec<_>>();
-        }
-        CMOVG => {
-            let gt_flag = perm[REGS + 1];
-            if gt_flag == 0 {
-                // flag not set => noop
-                return vec![perm.clone()];
-            }
-            // flag set => was overwrite (same as with MOV)
-            return apply_invers(&(MOV, to, from), perm);
-        }
-        CMOVL => {
-            let lt_flag = perm[REGS + 0];
-            if lt_flag == 0 {
-                // flag not set => noop
-                return vec![perm.clone()];
-            }
-            // flag set => was overwrite (same as with MOV)
-            return apply_invers(&(MOV, to, from), perm);
-        }
-        _ => panic!("Unknown instruction"),
-    }
-}
+// fn apply_invers(cmd: &Command, perm: &Permutation) -> Vec<Permutation> {
+//     let (instr, to, from) = *cmd;
+//     match instr {
+//         CMP => {
+//             let lt_flag = perm[REGS + 0];
+//             let gt_flag = perm[REGS + 1];
+//             // check that flags are set correctly
+//             if ((lt_flag == 0 && !(perm[to] < perm[from])) || (lt_flag == 1 && perm[to] < perm[from])) &&
+//                 ((gt_flag == 0 && !(perm[to] > perm[from])) || (gt_flag == 1 && perm[to] > perm[from])) {
+//                 // valid flags
+//                 // => return state with flags as anything (would be overwritten)
+//                 return 
+//                 // 0,0; 0,1; 1,0; 1,1 as possibilities for the flags
+//                 [(0,0), (0,1), (1,0), (1,1)].iter().map(|(lt,gt)| {
+//                     let mut new_perm = perm.clone();
+//                     new_perm[REGS + 0] = *lt;
+//                     new_perm[REGS + 1] = *gt;
+//                     new_perm
+//                 }).collect::<Vec<_>>();
+//             }else {
+//                 return vec![];
+//             }
+//         }
+//         MOV => {
+//             if perm[to] != perm[from] {
+//                 return vec![];
+//             }
+//             // dest could be anything before
+//             return [0;NUMBERS+1].iter().enumerate().map(|(x, _)| {
+//                 let mut new_perm = perm.clone();
+//                 new_perm[to] = x as u8;
+//                 new_perm
+//             }).collect::<Vec<_>>();
+//         }
+//         CMOVG => {
+//             let gt_flag = perm[REGS + 1];
+//             if gt_flag == 0 {
+//                 // flag not set => noop
+//                 return vec![perm.clone()];
+//             }
+//             // flag set => was overwrite (same as with MOV)
+//             return apply_invers(&(MOV, to, from), perm);
+//         }
+//         CMOVL => {
+//             let lt_flag = perm[REGS + 0];
+//             if lt_flag == 0 {
+//                 // flag not set => noop
+//                 return vec![perm.clone()];
+//             }
+//             // flag set => was overwrite (same as with MOV)
+//             return apply_invers(&(MOV, to, from), perm);
+//         }
+//         _ => panic!("Unknown instruction"),
+//     }
+// }
 
 // map a command over all permutations in a state
 fn apply_all(cmd: &Command, state: &State) -> State {
@@ -231,16 +227,30 @@ fn viable(state: &State) -> bool {
     true
 }
 
-fn show_command(cmd: &Command) -> String {
+fn show_command_human(cmd: &Command) -> String {
     let (instr, to, from) = *cmd;
     // 1-indexed to stay consistent with minizinc
     let to = to+1;
     let from = from+1;
     match instr {
-        CMP => format!("CMP {} {}", to, from),
-        MOV => format!("MOV {} {}", to, from),
-        CMOVG => format!("CMOVG {} {}", to, from),
-        CMOVL => format!("CMOVL {} {}", to, from),
+        MOV => format!("mov {}, {}", to, from),
+        MIN => format!("min {}, {}", to, from),
+        MAX => format!("max {}, {}", to, from),
+        _ => panic!("Unknown instruction"),
+    }
+}
+
+fn show_command(cmd: &Command) -> String {
+    let (instr, to, from) = *cmd;
+    // 1-indexed to stay consistent with minizinc
+    // let to = to+1;
+    // let from = from+1;
+    let to = format!("%%xmm{}", to);
+    let from = format!("%%xmm{}", from);
+    match instr {
+        MOV => format!("movdqa {}, {}", from, to),
+        MIN => format!("pminud {}, {}", from, to),
+        MAX => format!("pmaxud {}, {}", from, to),
         _ => panic!("Unknown instruction"),
     }
 }
@@ -257,91 +267,91 @@ struct Node {
 
 // a succinct representation modulo renaming for permutations
 // target for property-aware hashing
-#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-struct PermInfo 
-{
-    perm: Vec<Vec<u8>>,
-    flags: Vec<bool>,
-}
+// #[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+// struct PermInfo 
+// {
+//     perm: Vec<Vec<u8>>,
+//     flags: Vec<bool>,
+// }
 
-impl Display for PermInfo {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{:?} {:?}", &self.perm, &self.flags)
-    }
-}
+// impl Display for PermInfo {
+//     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+//         write!(f, "{:?} {:?}", &self.perm, &self.flags)
+//     }
+// }
 
-// vector extension (state representation) that allows to bind properties like serialization
-#[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
-struct PermInfoVec(Vec<PermInfo>);
-impl std::fmt::Display for PermInfoVec {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        for (i, perm_info) in self.0.iter().enumerate() {
-            if i != 0 {
-                write!(f, ", ")?;
-            }
-            write!(f, "[{}]", perm_info)?;
-        }
-        Ok(())
-    }
-}
+// // vector extension (state representation) that allows to bind properties like serialization
+// #[derive(Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+// struct PermInfoVec(Vec<PermInfo>);
+// impl std::fmt::Display for PermInfoVec {
+//     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+//         for (i, perm_info) in self.0.iter().enumerate() {
+//             if i != 0 {
+//                 write!(f, ", ")?;
+//             }
+//             write!(f, "[{}]", perm_info)?;
+//         }
+//         Ok(())
+//     }
+// }
 
-// parsing back to PermInfoVec
-impl From<String> for PermInfoVec {
-    fn from(s: String) -> Self {
-        let mut res = vec![];
-        for part in s.split(",") {
-            let part = part.trim();
-            let part = part.trim_start_matches('[');
-            let part = part.trim_end_matches(']');
-            let mut iter = part.split_whitespace();
-            let perm = iter.next().unwrap();
-            let flags = iter.next().unwrap();
-            let perm = perm.trim_start_matches('[');
-            let perm = perm.trim_end_matches(']');
-let perm = perm.split("|").map(|x| {
-    x.split(",").map(|y| y.parse::<u8>().unwrap()).collect::<Vec<u8>>()
-}).collect::<Vec<Vec<u8>>>();
-let flags = flags
-    .split(',')
-    .map(|x| x.parse::<bool>().unwrap())
-    .collect::<Vec<bool>>();
-            res.push(PermInfo{perm, flags});
-        }
-        PermInfoVec(res)
-    }
-}
+// // parsing back to PermInfoVec
+// impl From<String> for PermInfoVec {
+//     fn from(s: String) -> Self {
+//         let mut res = vec![];
+//         for part in s.split(",") {
+//             let part = part.trim();
+//             let part = part.trim_start_matches('[');
+//             let part = part.trim_end_matches(']');
+//             let mut iter = part.split_whitespace();
+//             let perm = iter.next().unwrap();
+//             let flags = iter.next().unwrap();
+//             let perm = perm.trim_start_matches('[');
+//             let perm = perm.trim_end_matches(']');
+// let perm = perm.split("|").map(|x| {
+//     x.split(",").map(|y| y.parse::<u8>().unwrap()).collect::<Vec<u8>>()
+// }).collect::<Vec<Vec<u8>>>();
+// let flags = flags
+//     .split(',')
+//     .map(|x| x.parse::<bool>().unwrap())
+//     .collect::<Vec<bool>>();
+//             res.push(PermInfo{perm, flags});
+//         }
+//         PermInfoVec(res)
+//     }
+// }
 
-// coercion between vector and structure
-impl From<Vec<PermInfo>> for PermInfoVec {
-    fn from(vec: Vec<PermInfo>) -> Self {
-        PermInfoVec(vec)
-    }
-}
+// // coercion between vector and structure
+// impl From<Vec<PermInfo>> for PermInfoVec {
+//     fn from(vec: Vec<PermInfo>) -> Self {
+//         PermInfoVec(vec)
+//     }
+// }
 
 
 
-// permutation -> positions of 1, ..., Number
-// e.g. [0,2,1,1] -> [[2,3],[1],[]]
-// representation modulo renaming
-fn perm_positions(perm: &Permutation) -> PermInfo {
-    let mut pos = vec![vec![]; NUMBERS];
-    for (i, &n) in perm[0..REGS].iter().enumerate() {
-        if n > 0 {
-            pos[(n - 1) as usize].push(i as u8);
-        }
-    }
-    // for (i, &n) in perm.iter().enumerate() {
-    //     if n > 0 {
-    //         pos[(n - 1) as usize].push(i as u8);
-    //     }
-    // }
-    // // sort result to get rid of naming association
+// // permutation -> positions of 1, ..., Number
+// // e.g. [0,2,1,1] -> [[2,3],[1],[]]
+// // representation modulo renaming
+// fn perm_positions(perm: &Permutation) -> PermInfo {
+//     let mut pos = vec![vec![]; NUMBERS];
+//     for (i, &n) in perm[0..REGS].iter().enumerate() {
+//         if n > 0 {
+//             pos[(n - 1) as usize].push(i as u8);
+//         }
+//     }
+//     // for (i, &n) in perm.iter().enumerate() {
+//     //     if n > 0 {
+//     //         pos[(n - 1) as usize].push(i as u8);
+//     //     }
+//     // }
+//     // // sort result to get rid of naming association
 
-    pos.sort();
-    // let flags = perm[REGS..].iter().map(|&x| x == 1).collect();
-    let flags = perm[REGS..REGS+2].iter().map(|&x| x == 1).collect();
-    PermInfo{perm: pos, flags}
-}
+//     pos.sort();
+//     // let flags = perm[REGS..].iter().map(|&x| x == 1).collect();
+//     let flags = perm[REGS..REGS+2].iter().map(|&x| x == 1).collect();
+//     PermInfo{perm: pos, flags}
+// }
 
 // for each permutation, take out register values, concat => serializable byte array
 // we could use perm_positions for more informed hashing/equality check
@@ -368,88 +378,88 @@ fn main() {
     // let perm_count = 6;
     // let permutations = permutations.choose_multiple(&mut rand::thread_rng(), perm_count).cloned().collect::<Vec<_>>();
 
-    let mut instructions_needed = HashMap::new();
-    let mut swaps_needed = HashMap::new();
-    // [u8] -> swap count
-    {
-        // via BFS from 1,...,NUMBERS -> until all permutations found
-        let mut frontier = vec![];
-        let mut init_perm = [0; NUMBERS];
-        for (i, x) in init_perm.iter_mut().enumerate() {
-            *x = (i+1) as u8;
-        }
-        frontier.push(init_perm);
-        swaps_needed.insert(init_perm, 0);
-        while let Some(perm) = frontier.pop() {
-            let swaps = swaps_needed[&perm];
-            for i in 0..NUMBERS {
-                for j in (i + 1)..NUMBERS {
-                    let mut new_perm = perm.clone();
-                    new_perm.swap(i, j);
-                    if !swaps_needed.contains_key(&new_perm) {
-                        swaps_needed.insert(new_perm, swaps + 1);
-                        frontier.push(new_perm);
-                    }
-                }
-            }
-        }
-        println!("Computed swaps for {} permutations", swaps_needed.len());
-        if swaps_needed.len() != init_perm_count {
-            panic!("Not all permutations found");
-        }
-    }
+    // let mut instructions_needed = HashMap::new();
+    // let mut swaps_needed = HashMap::new();
+    // // [u8] -> swap count
+    // {
+    //     // via BFS from 1,...,NUMBERS -> until all permutations found
+    //     let mut frontier = vec![];
+    //     let mut init_perm = [0; NUMBERS];
+    //     for (i, x) in init_perm.iter_mut().enumerate() {
+    //         *x = (i+1) as u8;
+    //     }
+    //     frontier.push(init_perm);
+    //     swaps_needed.insert(init_perm, 0);
+    //     while let Some(perm) = frontier.pop() {
+    //         let swaps = swaps_needed[&perm];
+    //         for i in 0..NUMBERS {
+    //             for j in (i + 1)..NUMBERS {
+    //                 let mut new_perm = perm.clone();
+    //                 new_perm.swap(i, j);
+    //                 if !swaps_needed.contains_key(&new_perm) {
+    //                     swaps_needed.insert(new_perm, swaps + 1);
+    //                     frontier.push(new_perm);
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     println!("Computed swaps for {} permutations", swaps_needed.len());
+    //     if swaps_needed.len() != init_perm_count {
+    //         panic!("Not all permutations found");
+    //     }
+    // }
 
 
     // now try any instructions -> relax heuristic (ignore all other dependencies)
     // could be used to only investigate programs that lead to a relaxed solution
     // there might be an instruction that is suboptimal across all individual but optimal global 
     // let's ignore that
-    let mut useful_instructions = HashMap::new();
-    {
-        let mut frontier = VecDeque::new();
-        let mut init_perm = Permutation([0; REGS + 2]);
-        for (i, x) in init_perm[0..NUMBERS].iter_mut().enumerate() {
-            *x = (i+1) as u8;
-        }
-        let init_perms : Vec<Permutation> = 
-            // any swap and any flags
-            // possible flags
-            [(0,0), (0,1), (1,0), (1,1)].iter().map(|(lt,gt)| {
-                // possible swap values
-                // for general swap count, we need {0,...,N}^swap
-                let numbers = (0..=NUMBERS_U8).collect::<Vec<u8>>();
-                itertools::repeat_n(numbers, SWAPS).multi_cartesian_product().map(|swap| {
-                    let mut new_perm = init_perm.clone();
-                    for (i, &x) in swap.iter().enumerate() {
-                        new_perm[NUMBERS+i] = x;
-                    }
-                    new_perm[REGS + 0] = *lt;
-                    new_perm[REGS + 1] = *gt;
-                    new_perm
-                }).collect::<Vec<_>>()
-            }).flatten().collect();
-        for perm in init_perms {
-            instructions_needed.insert(perm, 0);
-            frontier.push_back(perm);
-        }
+    // let mut useful_instructions = HashMap::new();
+    // {
+    //     let mut frontier = VecDeque::new();
+    //     let mut init_perm = Permutation([0; REGS + 2]);
+    //     for (i, x) in init_perm[0..NUMBERS].iter_mut().enumerate() {
+    //         *x = (i+1) as u8;
+    //     }
+    //     let init_perms : Vec<Permutation> = 
+    //         // any swap and any flags
+    //         // possible flags
+    //         [(0,0), (0,1), (1,0), (1,1)].iter().map(|(lt,gt)| {
+    //             // possible swap values
+    //             // for general swap count, we need {0,...,N}^swap
+    //             let numbers = (0..=NUMBERS_U8).collect::<Vec<u8>>();
+    //             itertools::repeat_n(numbers, SWAPS).multi_cartesian_product().map(|swap| {
+    //                 let mut new_perm = init_perm.clone();
+    //                 for (i, &x) in swap.iter().enumerate() {
+    //                     new_perm[NUMBERS+i] = x;
+    //                 }
+    //                 new_perm[REGS + 0] = *lt;
+    //                 new_perm[REGS + 1] = *gt;
+    //                 new_perm
+    //             }).collect::<Vec<_>>()
+    //         }).flatten().collect();
+    //     for perm in init_perms {
+    //         instructions_needed.insert(perm, 0);
+    //         frontier.push_back(perm);
+    //     }
 
-        let commands = possible_commands();
+    //     let commands = possible_commands();
 
-        while let Some(perm) = frontier.pop_front() {
-            let instructions = instructions_needed[&perm];
-            for cmd in &commands {
-                for new_perm in apply_invers(cmd, &perm) {
-                    if !instructions_needed.contains_key(&new_perm) {
-                        instructions_needed.insert(new_perm, instructions + 1);
-                        frontier.push_back(new_perm);
-                        // add cmd to vec of new_perm
-                        useful_instructions.entry(new_perm).or_insert(vec![]).push(*cmd);
-                    }
-                }
-            }
-        }
-        println!("Computed instructions for {} permutation states", instructions_needed.len());
-    }
+    //     while let Some(perm) = frontier.pop_front() {
+    //         let instructions = instructions_needed[&perm];
+    //         for cmd in &commands {
+    //             for new_perm in apply_invers(cmd, &perm) {
+    //                 if !instructions_needed.contains_key(&new_perm) {
+    //                     instructions_needed.insert(new_perm, instructions + 1);
+    //                     frontier.push_back(new_perm);
+    //                     // add cmd to vec of new_perm
+    //                     useful_instructions.entry(new_perm).or_insert(vec![]).push(*cmd);
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     println!("Computed instructions for {} permutation states", instructions_needed.len());
+    // }
 
     // TODO: proxy queue via sled hashmap for all solution cases (large memory concumption 25GB (65 million states peak for n=4 with all solutions and cut))
     let mut queue = PriorityQueue::new();
@@ -484,7 +494,7 @@ fn main() {
     let initial_state: Rc<State> = Rc::new(permutations
         .iter()
         .map(|p| {
-            let mut perm = Permutation([0; REGS + 2]);
+            let mut perm = Permutation([0; REGS]);
             for (i, &x) in p.iter().enumerate() {
                 perm[i] = x;
             }
@@ -520,23 +530,12 @@ fn main() {
     // TODO: should be arguments not env
     // let all_solutions = std::env::var("ALL_SOLUTIONS").is_ok();
 
-    let write_all = std::env::var("WRITE_ALL").is_ok();
     // let mut solutions = vec![];
     let mut solution_count = 0;
     let solution_dir = std::env::var("SOLUTION_DIR").ok();
     let subdir = solution_dir.clone().map(|dir| format!("{}/{}_{}", dir, NUMBERS, MAX_LEN));
-    let all_dir = 
-        if write_all {
-            solution_dir.map(|dir| format!("{}/{}_{}_all", dir, NUMBERS, MAX_LEN))
-        }else {
-            None
-        }
-    ;
     if let Some(subdir) = &subdir {
         std::fs::create_dir_all(&subdir).unwrap();
-        if let Some(all_dir) = &all_dir {
-            std::fs::create_dir_all(&all_dir).unwrap();
-        }
         println!("Storing solutions in: {}", subdir);
     }else {
         println!("Not storing solutions");
@@ -564,14 +563,14 @@ fn main() {
             // #[cfg(feature = "store-canidates")]
             // file.sync_all().unwrap();
         }
-        if let Some(all_dir) = &all_dir {
-            let file = format!("{}/state_{}_{}.txt", all_dir, length, visited);
-            let mut file = std::fs::File::create(file).unwrap();
-            let cmds = extract_program(&prg);
-            for cmd in &cmds {
-                writeln!(file, "{}", show_command(cmd)).unwrap();
-            }
-        }
+        // if let Some(all_dir) = &all_dir {
+        //     let file = format!("{}/state_{}_{}.txt", all_dir, length, visited);
+        //     let mut file = std::fs::File::create(file).unwrap();
+        //     let cmds = extract_program(&prg);
+        //     for cmd in &cmds {
+        //         writeln!(file, "{}", show_command(cmd)).unwrap();
+        //     }
+        // }
 
         // test twice => in between another state might have reopened it better
         // => ignore in this case
@@ -717,10 +716,10 @@ fn main() {
         // *5/4  4.88s
         // *1    2.22s  (689s for n=5)
         // *4    > 140s
-        if min_perm_count[length as usize] < new_perm_count {
-            cut += 1;
-            continue;
-        }
+        // if min_perm_count[length as usize] < new_perm_count {
+        //     cut += 1;
+        //     continue;
+        // }
 
 
 
@@ -756,8 +755,8 @@ fn main() {
                 // <= is much faster and valid to find one solution
                 // with <= we find 18 solutions for n=3 (in 4s)
                 // <, we find 1642 solutions for n=3 (in 38s)
-                if old_length <= new_length { //      solutions_min
-                // if old_length < new_length { // solutions_all
+                // if old_length <= new_length { //      solutions_min
+                if old_length < new_length { // solutions_all
                     duplicate += 1;
                     continue;
                 }else {
@@ -806,96 +805,4 @@ fn main() {
     println!("Elapsed: {:?}", start.elapsed());
 }
 
-// TMP_FILE=candidates.log cargo run --release --features "store-candidates"
-// TMP_FILE=candidates.log cargo run --release --bin compute_vec --all-features
-
-// cargo build --release --features "store-candidates"
-// TMP_FILE=candidates.log
-
-
-
-
-
-
-// Frontier: 6005241
-// Check solutions
-// Found: 18 of length: 11
-// Elapsed: 66.044976606s
-// Visited: 4636286, Duplicate: 184082486
-
-
-
-// Length: 11
-// Frontier: 3048404
-// Check solutions
-// Found: 30 of length: 11
-// Elapsed: 66.004879274s
-// Visited: 3172209, Duplicate: 127012166
-
-
-
-// Length: 11
-// Frontier: 3048404
-// Check solutions
-// Found: 30 of length: 11
-// Elapsed: 53.147533951s
-// Visited: 3172209, Duplicate: 127012166
-
-
-// Length: 11
-// Frontier: 933598
-// Check solutions
-// Found: 2 of length: 11
-// Elapsed: 19.649023656s
-// Visited: 1318079, Duplicate: 53107642
-
-
-
-
-
-
-
-
-// A* without heuristic = Dijkstra
-// Found solution: [[2, 1, 3, 0, 0, 1], [2, 1, 3, 2, 0, 1], [2, 1, 3, 3, 1, 0]] of length: 11
-// Visited: 4803316, Duplicate: 190721609
-// Elapsed: 74.769883371s
-
-
-// custom A* without heuristic position hash
-// already visit many of length 11 first
-// Visited: 2000000, Duplicate: 80978956, Current length: 11
-// Found solution: [[3, 2, 1, 1, 0, 1], [3, 2, 1, 2, 1, 0]] of length: 11
-// Visited: 2071418, Duplicate: 83909981
-// Elapsed: 60.436542603s
-
-// custom A*, len heuristic, position hash
-// Found solution: [[1, 2, 3, 1, 0, 1], [1, 2, 3, 2, 1, 0]] of length: 11
-// Visited: 39253, Duplicate: 1511701
-// Elapsed: 1.302491638s
-
-
-
-
-// greedy cut all permutations for 4 => no solutions
-// Visited: 3100000, Duplicate: 9377953, Cut: 22331993, Candidates: 0, Current length: 6, 
-// Visited: 3142624, Duplicate: 9377953
-// Elapsed: 48.940570828s
-
-
-
-
-
-// SOLUTION_DIR=solutions_all_cut_2 _CONDOR_SCRATCH_DIR=./tmp2/ cargo run --release | tee -a all_cut_4_log_4.txt
-// SOLUTION_DIR=solutions_all_safecut _CONDOR_SCRATCH_DIR=./tmp2/ cargo run --release | tee -a all_safecut_4_log_4.txt
-// du -c -d 2 sol*
-// du -c -d 2 --separate-dirs sol* | sort -n
-
-
-
-
-// for cut *1
-// Visited: 5696948, Duplicate: 15276202
-// Elapsed: 688.811328372s
-
-// WRITE_ALL=True SOLUTION_DIR=vis/solutions_all_cut_times1 _CONDOR_SCRATCH_DIR=./tmp2/ cargo run --release | tee -a vis/all_cut_times1_3_log.txt
+// SOLUTION_DIR=vis_minmax/solutions_all_minmax _CONDOR_SCRATCH_DIR=./tmp2/ cargo run --release --bin minmax | tee -a vis_minmax/all_minmax_log.txt

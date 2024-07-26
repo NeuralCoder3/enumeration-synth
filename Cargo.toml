@@ -35,3 +35,15 @@ path = "src/main_parallel.rs"
 [[bin]]
 name = "compute_vec_gpu"
 path = "src/main_gpu.rs"
+
+[[bin]]
+name = "compute_vec_gpu_struct"
+path = "src/main_gpu_struct.rs"
+
+[[bin]]
+name = "minmax"
+path = "src/main_astar_minmax.rs"
+
+[[bin]]
+name = "mixed"
+path = "src/main_astar_mixed.rs"
